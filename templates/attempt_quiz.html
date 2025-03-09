@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Attempt Quiz{% endblock %}
+
+{% block content %}
+<!-- User Sub-Navbar with timer -->
+<nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
+  <div class="container-fluid">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.user_dashboard') }}">Home</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.user_scores') }}">Scores</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.user_summary') }}">Summary</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.logout') }}">Logout</a></li>
+    </ul>
+    <div class="text-primary fw-bold" id="quizTimerContainer">
+      <span id="quizTimer">15:00</span>
+    </div>
+  </div>
+</nav>
+
+<h2 class="text-white mb-4">Quiz: {{ quiz.name or ('Quiz #' ~ quiz.id) }}</h2>
+
+<form method="POST">
+  <div class="card mb-3">
+    <div class="card-body">
+      <h5 class="card-title text-white">Q{{ page }}: {{ question.question_statement }}</h5>
+      {% if question.image_url %}
+        <img src="{{ question.image_url }}" alt="Question Image" class="img-fluid mb-3">
+      {% endif %}
+      {% if question.question_type == "single" %}
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="answer" value="option1" required>
+          <label class="form-check-label text-white">{{ question.option1 }}</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="answer" value="option2">
+          <label class="form-check-label text-white">{{ question.option2 }}</label>
+        </div>
+        {% if question.option3 %}
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="answer" value="option3">
+          <label class="form-check-label text-white">{{ question.option3 }}</label>
+        </div>
+        {% endif %}
+        {% if question.option4 %}
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="answer" value="option4">
+          <label class="form-check-label text-white">{{ question.option4 }}</label>
+        </div>
+        {% endif %}
+      {% elif question.question_type == "multiselect" %}
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="answer" value="option1">
+          <label class="form-check-label text-white">{{ question.option1 }}</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="answer" value="option2">
+          <label class="form-check-label text-white">{{ question.option2 }}</label>
+        </div>
+        {% if question.option3 %}
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="answer" value="option3">
+          <label class="form-check-label text-white">{{ question.option3 }}</label>
+        </div>
+        {% endif %}
+        {% if question.option4 %}
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="answer" value="option4">
+          <label class="form-check-label text-white">{{ question.option4 }}</label>
+        </div>
+        {% endif %}
+      {% elif question.question_type == "integer" %}
+        <div class="mb-3">
+          <input type="number" name="answer" class="form-control" placeholder="Enter your answer" required>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  
+  <!-- Navigation Box -->
+  <div class="d-flex justify-content-between mb-3">
+    {% if page > 1 %}
+      <button type="submit" name="action" value="prev" class="btn btn-secondary">Previous</button>
+    {% else %}
+      <div></div>
+    {% endif %}
+    {% if page < total_pages %}
+      <button type="submit" name="action" value="next" class="btn btn-primary">Next</button>
+    {% else %}
+      <button type="submit" name="action" value="submit" class="btn btn-success">Submit</button>
+    {% endif %}
+  </div>
+</form>
+
+<!-- Timer Script -->
+<script>
+  let totalSeconds = 15 * 60;
+  let timerEl = document.getElementById('quizTimer');
+  function updateTimer() {
+    let mins = Math.floor(totalSeconds / 60);
+    let secs = totalSeconds % 60;
+    timerEl.textContent = String(mins).padStart(2, '0') + ":" + String(secs).padStart(2, '0');
+    totalSeconds--;
+    if (totalSeconds < 0) {
+      document.querySelector('form').submit();
+    }
+  }
+  setInterval(updateTimer, 1000);
+</script>
+{% endblock %}

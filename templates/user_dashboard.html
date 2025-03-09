@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}User Dashboard{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
+  <div class="container-fluid">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.user_dashboard') }}">Home</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.user_scores') }}">Scores</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.user_summary') }}">Summary</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.logout') }}">Logout</a></li>
+    </ul>
+    <form class="d-flex" method="GET" action="{{ url_for('app_routes.user_dashboard') }}">
+      <input class="form-control me-2" type="search" name="search" placeholder="Search Quizzes">
+      <button class="btn btn-outline-primary" type="submit">Search</button>
+    </form>
+  </div>
+</nav>
+
+<h2 class="text-white mb-4">Welcome User</h2>
+<p class="text-white">Here are your available quizzes:</p>
+<div class="table-responsive">
+  <table class="table table-bordered table-sm">
+    <thead class="table-dark">
+      <tr>
+        <th class="text-white">Quiz ID</th>
+        <th class="text-white">Quiz Name</th>
+        <th class="text-white"># Questions</th>
+        <th class="text-white">Date/Time</th>
+        <th class="text-white">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for q in quizzes %}
+      <tr>
+        <td class="text-white">{{ q.id }}</td>
+        <td class="text-white">{{ q.name if q.name else 'No Name' }}</td>
+        <td class="text-white">{{ q.questions|length }}</td>
+        <td class="text-white">{{ q.date_of_quiz }} / {{ q.time_duration }} mins</td>
+        <td>
+          <a href="{{ url_for('app_routes.attempt_quiz', quiz_id=q.id) }}" class="btn btn-sm btn-success">
+            Start
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

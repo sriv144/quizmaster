@@ -1,0 +1,68 @@
+/* styles.css */
+
+/* Remove default margin/padding */
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Transparent, absolute-positioned navbar */
+.custom-nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: transparent !important;
+  z-index: 999;
+  border: none;
+}
+
+/* White text for navbar items */
+.navbar-dark .navbar-brand,
+.navbar-dark .navbar-nav .nav-link {
+  color: #fff !important;
+}
+
+/* Full-screen starry background for all pages */
+.starry-hero {
+  background: url('../images/pexels-felixmittermeier-956999.jpg') center center / cover no-repeat;
+  min-height: 100vh;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Dark overlay for readability */
+.starry-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 0;
+}
+
+/* Container above overlay */
+.starry-hero .container {
+  position: relative;
+  z-index: 1;
+}
+
+/* Frosted glass effect for the content card */
+.frosted-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  padding: 20px;
+}
+
+/* Ensure headings/labels are white */
+.text-white {
+  color: #fff !important;
+}
+
+/* Optional navbar light shadow */
+.navbar-light.bg-light {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}

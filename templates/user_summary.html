@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}User Summary{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
+  <div class="container-fluid">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.user_dashboard') }}">Home</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.user_scores') }}">Scores</a></li>
+      <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ url_for('app_routes.user_summary') }}">Summary</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.logout') }}">Logout</a></li>
+    </ul>
+  </div>
+</nav>
+
+<h2 class="text-white mb-4">My Summary & Analytics</h2>
+<div class="row">
+  <div class="col-md-6 mb-4">
+    <h5 class="text-white">Scores Per Quiz</h5>
+    <canvas id="userBarChart"></canvas>
+  </div>
+  <div class="col-md-6 mb-4">
+    <h5 class="text-white">Overall Correct vs. Incorrect</h5>
+    <canvas id="userPieChart"></canvas>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const quizLabels = {{ quiz_labels|tojson }};
+  const quizScores = {{ quiz_scores|tojson }};
+  const totalCorrect = {{ total_correct }};
+  const totalIncorrect = {{ total_incorrect }};
+
+  const barCtx = document.getElementById('userBarChart').getContext('2d');
+  new Chart(barCtx, {
+    type: 'bar',
+    data: {
+      labels: quizLabels,
+      datasets: [{
+        label: 'Score',
+        data: quizScores,
+        backgroundColor: 'rgba(54, 162, 235, 0.7)'
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  const pieCtx = document.getElementById('userPieChart').getContext('2d');
+  new Chart(pieCtx, {
+    type: 'pie',
+    data: {
+      labels: ['Correct', 'Incorrect'],
+      datasets: [{
+        data: [totalCorrect, totalIncorrect],
+        backgroundColor: ['#28a745', '#dc3545']
+      }]
+    },
+    options: { responsive: true }
+  });
+</script>
+{% endblock %}

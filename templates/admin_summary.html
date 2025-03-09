@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Admin Summary - Quiz Master{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
+  <div class="container-fluid">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.admin_dashboard') }}">Home</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.quiz_management') }}">Quiz</a></li>
+      <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ url_for('app_routes.admin_summary') }}">Summary</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.logout') }}">Logout</a></li>
+    </ul>
+    <form class="d-flex" method="GET" action="{{ url_for('app_routes.admin_summary') }}">
+      <select name="sort_by" class="form-select me-2">
+        <option value="user" {% if sort_by == "user" %}selected{% endif %}>Sort by User</option>
+        <option value="subject" {% if sort_by == "subject" %}selected{% endif %}>Sort by Subject</option>
+        <option value="quiz" {% if sort_by == "quiz" %}selected{% endif %}>Sort by Quiz</option>
+        <option value="score" {% if sort_by == "score" %}selected{% endif %}>Sort by Score</option>
+        <option value="time" {% if sort_by == "time" %}selected{% endif %}>Sort by Time</option>
+      </select>
+      <button class="btn btn-outline-primary" type="submit">Sort</button>
+    </form>
+  </div>
+</nav>
+
+<h2 class="text-white mb-4">Advanced Admin Reports</h2>
+<div class="table-responsive">
+  <table class="table table-bordered table-sm">
+    <thead class="table-dark">
+      <tr>
+        <th class="text-white">User</th>
+        <th class="text-white">Subject</th>
+        <th class="text-white">Chapter</th>
+        <th class="text-white">Quiz</th>
+        <th class="text-white">Score</th>
+        <th class="text-white">Time Spent</th>
+        <th class="text-white">Attempted On</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in data %}
+      <tr>
+        <td class="text-white">{{ row.username }}</td>
+        <td class="text-white">{{ row.subject_name }}</td>
+        <td class="text-white">{{ row.chapter_name }}</td>
+        <td class="text-white">{{ row.quiz_name if row.quiz_name else ('Quiz #' ~ row.quiz_id) }}</td>
+        <td class="text-white">{{ row.total_scored }}</td>
+        <td class="text-white">{{ row.time_spent }} sec</td>
+        <td class="text-white">{{ row.time_stamp_of_attempt }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h3 class="text-white mt-5">Analytics</h3>
+<div class="row">
+  <div class="col-md-6 mb-4">
+    <h5 class="text-white">Total Scores by User</h5>
+    <canvas id="adminBarChart"></canvas>
+  </div>
+  <div class="col-md-6 mb-4">
+    <h5 class="text-white">Additional Analytics</h5>
+    <canvas id="adminPieChart"></canvas>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const barLabels = {{ chart_labels|tojson }};
+  const barData = {{ chart_data|tojson }};
+
+  const barCtx = document.getElementById('adminBarChart').getContext('2d');
+  new Chart(barCtx, {
+    type: 'bar',
+    data: {
+      labels: barLabels,
+      datasets: [{
+        label: 'Total Score',
+        data: barData,
+        backgroundColor: 'rgba(75, 192, 192, 0.7)'
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  const pieCtx = document.getElementById('adminPieChart').getContext('2d');
+  new Chart(pieCtx, {
+    type: 'pie',
+    data: {
+      labels: ['Placeholder1', 'Placeholder2'],
+      datasets: [{
+        data: [60, 40],
+        backgroundColor: ['#ffc107', '#28a745']
+      }]
+    },
+    options: { responsive: true }
+  });
+</script>
+{% endblock %}

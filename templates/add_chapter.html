@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Add Chapter - Quiz Master{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
+  <div class="container-fluid">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.admin_dashboard') }}">Home</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.quiz_management') }}">Quiz</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.logout') }}">Logout</a></li>
+    </ul>
+  </div>
+</nav>
+
+<h2 class="mb-4 text-white">Add Chapter</h2>
+<form method="POST">
+  <div class="mb-3">
+    <label for="chapter_name" class="form-label text-white">Chapter Name:</label>
+    <input type="text" id="chapter_name" name="chapter_name" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label for="subject_id" class="form-label text-white">Select Subject:</label>
+    <select id="subject_id" name="subject_id" class="form-select" required>
+      <option value="">-- Select Subject --</option>
+      {% for subj in subjects %}
+      <option value="{{ subj.id }}"
+        {% if subject_id_prefill and subject_id_prefill == subj.id|string %}selected{% endif %}>
+        {{ subj.name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn-primary">Add Chapter</button>
+</form>
+{% endblock %}

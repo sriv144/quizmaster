@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Add Question - Quiz Master{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
+  <div class="container-fluid">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('app_routes.admin_dashboard') }}">Home</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('app_routes.quiz_management') }}">Quiz</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('app_routes.logout') }}">Logout</a>
+      </li>
+    </ul>
+  </div>
+</nav>
+
+<h2 class="mb-4 text-white">Add Question to Quiz #{{ quiz.id }}: {{ quiz.name }}</h2>
+<form method="POST">
+  <div class="mb-3">
+    <label for="question_statement" class="form-label text-white">Question Statement:</label>
+    <textarea id="question_statement" name="question_statement" class="form-control" rows="3" required></textarea>
+  </div>
+
+  <!-- Select Question Type -->
+  <div class="mb-3">
+    <label class="form-label text-white">Question Type:</label>
+    <select id="question_type" name="question_type" class="form-select" required>
+      <option value="single">Single Choice</option>
+      <option value="multiselect">Multiple Select</option>
+      <option value="integer">Integer</option>
+    </select>
+  </div>
+
+  <!-- Optional Image URL -->
+  <div class="mb-3">
+    <label class="form-label text-white">Image URL (optional):</label>
+    <input type="text" name="image_url" class="form-control" placeholder="Enter image URL">
+  </div>
+
+  <!-- Options for single choice / multiselect -->
+  <div id="options_div">
+    <div class="mb-3">
+      <label class="form-label text-white">Option 1:</label>
+      <input type="text" class="form-control" name="option1" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label text-white">Option 2:</label>
+      <input type="text" class="form-control" name="option2" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label text-white">Option 3:</label>
+      <input type="text" class="form-control" name="option3">
+    </div>
+    <div class="mb-3">
+      <label class="form-label text-white">Option 4:</label>
+      <input type="text" class="form-control" name="option4">
+    </div>
+  </div>
+
+  <!-- Single Choice Correct Option Dropdown -->
+  <div id="single_correct_div" class="mb-3">
+    <label class="form-label text-white">Correct Option:</label>
+    <select name="correct_option" class="form-select" required>
+      <option value="option1">Option 1</option>
+      <option value="option2">Option 2</option>
+      <option value="option3">Option 3</option>
+      <option value="option4">Option 4</option>
+    </select>
+  </div>
+
+  <!-- Multiple Select Correct Options Checkboxes -->
+  <div id="multiselect_correct_div" class="mb-3" style="display: none;">
+    <label class="form-label text-white">Select Correct Options (check all that apply):</label>
+    <div class="form-check">
+      <input type="checkbox" class="form-check-input" name="multiselect_correct" value="option1">
+      <label class="form-check-label text-white">Option 1</label>
+    </div>
+    <div class="form-check">
+      <input type="checkbox" class="form-check-input" name="multiselect_correct" value="option2">
+      <label class="form-check-label text-white">Option 2</label>
+    </div>
+    <div class="form-check">
+      <input type="checkbox" class="form-check-input" name="multiselect_correct" value="option3">
+      <label class="form-check-label text-white">Option 3</label>
+    </div>
+    <div class="form-check">
+      <input type="checkbox" class="form-check-input" name="multiselect_correct" value="option4">
+      <label class="form-check-label text-white">Option 4</label>
+    </div>
+  </div>
+
+  <!-- Integer Type: Correct Answer Range -->
+  <div id="integer_correct_div" class="mb-3" style="display: none;">
+    <label class="form-label text-white">Correct Answer (or Range):</label>
+    <input type="text" class="form-control" name="correct_option_integer" placeholder="e.g., 42 or 40-45">
+  </div>
+
+  <div class="d-flex justify-content-between">
+    <button type="submit" name="action" value="save_next" class="btn btn-primary">Save and Next</button>
+    <button type="submit" name="action" value="close" class="btn btn-secondary" formnovalidate>Close</button>
+  </div>
+</form>
+
+<script>
+  // JavaScript to show/hide controls based on question type
+  const qTypeSelect = document.getElementById('question_type');
+  const optionsDiv = document.getElementById('options_div');
+  const singleCorrectDiv = document.getElementById('single_correct_div');
+  const multiselectCorrectDiv = document.getElementById('multiselect_correct_div');
+  const integerCorrectDiv = document.getElementById('integer_correct_div');
+
+  function updateControls() {
+    const qType = qTypeSelect.value;
+    if (qType === "single") {
+      optionsDiv.style.display = "block";
+      singleCorrectDiv.style.display = "block";
+      multiselectCorrectDiv.style.display = "none";
+      integerCorrectDiv.style.display = "none";
+    } else if (qType === "multiselect") {
+      optionsDiv.style.display = "block";
+      singleCorrectDiv.style.display = "none";
+      multiselectCorrectDiv.style.display = "block";
+      integerCorrectDiv.style.display = "none";
+    } else if (qType === "integer") {
+      // For integer, hide options and show integer input.
+      optionsDiv.style.display = "none";
+      singleCorrectDiv.style.display = "none";
+      multiselectCorrectDiv.style.display = "none";
+      integerCorrectDiv.style.display = "block";
+    }
+  }
+
+  qTypeSelect.addEventListener("change", updateControls);
+  // Initialize on page load:
+  updateControls();
+</script>
+{% endblock %}

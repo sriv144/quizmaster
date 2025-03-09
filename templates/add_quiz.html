@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Add Quiz - Quiz Master{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
+  <div class="container-fluid">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.admin_dashboard') }}">Home</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.quiz_management') }}">Quiz</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.logout') }}">Logout</a></li>
+    </ul>
+  </div>
+</nav>
+
+<h2 class="mb-4 text-white">Add New Quiz</h2>
+<form method="POST">
+  <div class="mb-3">
+    <label for="quiz_name" class="form-label text-white">Quiz Name:</label>
+    <input type="text" id="quiz_name" name="quiz_name" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label for="chapter_id" class="form-label text-white">Select Chapter:</label>
+    <select id="chapter_id" name="chapter_id" class="form-select" required>
+      <option value="">-- Select Chapter --</option>
+      {% for chap in chapters %}
+      <option value="{{ chap.id }}">{{ chap.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="mb-3">
+    <label for="date_of_quiz" class="form-label text-white">Date of Quiz:</label>
+    <input type="date" id="date_of_quiz" name="date_of_quiz" class="form-control">
+  </div>
+  <div class="mb-3">
+    <label for="time_duration" class="form-label text-white">Time Duration (minutes):</label>
+    <input type="number" id="time_duration" name="time_duration" class="form-control" required>
+  </div>
+  <!-- Save and Cancel buttons -->
+  <button type="submit" class="btn btn-primary">Save</button>
+  <a href="{{ url_for('app_routes.admin_dashboard') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

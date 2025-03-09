@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Quiz Result{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
+  <div class="container-fluid">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('app_routes.user_dashboard') }}">Home</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('app_routes.user_scores') }}">Scores</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('app_routes.user_summary') }}">Summary</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('app_routes.logout') }}">Logout</a>
+      </li>
+    </ul>
+  </div>
+</nav>
+
+<h2 class="text-white mb-4">Quiz Result</h2>
+<p class="text-white">Placeholder for how the user answered each question, correct answers, etc.</p>
+
+<button onclick="window.location='{{ url_for('app_routes.user_dashboard') }}'" class="btn btn-secondary">Close</button>
+{% endblock %}
