@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}User Dashboard{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
+  <div class="container-fluid">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.user_dashboard') }}">Home</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.user_scores') }}">Scores</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.user_summary') }}">Summary</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.logout') }}">Logout</a></li>
+    </ul>
+    <div class="d-flex">
+      <input id="liveSearch" class="form-control me-2" type="search" placeholder="Search Quizzes">
+    </div>
+  </div>
+</nav>
+
+<h2 class="text-white mb-4">The quizzes scheduled are:</h2>
+<div id="no-results-message" class="alert alert-info mt-3" style="display: none;">
+  No quizzes found matching your search.
+</div>
+<div class="table-responsive">
+  <table class="table table-bordered table-sm">
+    <thead class="table-dark">
+      <tr>
+        <th class="text-white">Quiz ID</th>
+        <th class="text-white">Quiz Name</th>
+        <th class="text-white">Scheduled At</th>
+        <th class="text-white">Status</th>
+        <th class="text-white">Action</th>
+      </tr>
+    </thead>
+    <tbody id="quiz-table-body">
+      {% for item in quiz_status_list %}
+      <tr class="quiz-row" data-quiz-name="{{ item.quiz.name|lower if item.quiz.name else 'no name' }}" data-quiz-status="{{ item.status|lower }}">
+        <td class="text-white">{{ item.quiz.id }}</td>
+        <td class="text-white">{{ item.quiz.name if item.quiz.name else 'No Name' }}</td>
+        <td class="text-white">
+          {% if item.quiz.start_time %}
+            {{ item.quiz.start_time.strftime("%Y-%m-%d %H:%M") }}
+            {% if item.status == "Scheduled" %}
+            <br><small>(Starts in: <span class="countdown-timer" data-start-time="{{ item.quiz.start_time.strftime('%Y-%m-%dT%H:%M:%S') }}">Calculating...</span>)</small>
+            {% endif %}
+          {% else %}
+            N/A
+          {% endif %}
+        </td>
+        <td class="text-white">
+          <span class="badge 
+            {% if item.status == 'Available' %}bg-success
+            {% elif item.status == 'Scheduled' %}bg-warning
+            {% elif item.status == 'Completed' %}bg-info
+            {% else %}bg-secondary{% endif %}">
+            {{ item.status }}
+          </span>
+        </td>
+        <td>
+          {% if item.status == "Available" %}
+            <a href="{{ url_for('app_routes.attempt_quiz', quiz_id=item.quiz.id) }}" class="btn btn-sm btn-success">Start</a>
+          {% elif item.status == "Completed" %}
+            <a href="{{ url_for('app_routes.user_summary') }}" class="btn btn-sm btn-info">Finished</a>
+          {% else %}
+            <span class="badge bg-secondary">{{ item.status }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+  // Live search functionality
+  document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('liveSearch');
+    const quizRows = document.querySelectorAll('.quiz-row');
+    const noResultsMessage = document.getElementById('no-results-message');
+    
+    searchInput.addEventListener('input', function() {
+      const searchTerm = this.value.trim().toLowerCase();
+      let matchFound = false;
+      
+      quizRows.forEach(row => {
+        const quizName = row.getAttribute('data-quiz-name');
+        const quizStatus = row.getAttribute('data-quiz-status');
+        
+        // Show row if quiz name contains search term or no search term is entered
+        if (quizName.includes(searchTerm) || quizStatus.includes(searchTerm) || !searchTerm) {
+          row.style.display = '';
+          matchFound = true;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+      
+      // Toggle no results message
+      if (!matchFound && searchTerm) {
+        noResultsMessage.style.display = 'block';
+      } else {
+        noResultsMessage.style.display = 'none';
+      }
+    });
+  });
+  
+  // Update countdown timers for scheduled quizzes
+  document.addEventListener('DOMContentLoaded', function() {
+    const countdownElements = document.querySelectorAll('.countdown-timer');
+    
+    function updateCountdowns() {
+      const now = new Date().getTime();
+      
+      countdownElements.forEach(element => {
+        const startTime = new Date(element.getAttribute('data-start-time')).getTime();
+        const timeRemaining = startTime - now;
+        
+        if (timeRemaining <= 0) {
+          element.textContent = "Starting now!";
+          // Optionally reload the page after a short delay
+          setTimeout(() => location.reload(), 3000);
+        } else {
+          // Calculate days, hours, minutes, seconds
+          const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
+          
+          // Format the countdown display
+          let timeDisplay = '';
+          if (days > 0) {
+            timeDisplay += `${days}d `;
+          }
+          timeDisplay += `${hours}h ${minutes}m ${seconds}s`;
+          
+          element.textContent = timeDisplay;
+        }
+      });
+    }
+    
+    // Update countdowns immediately and then every second
+    if (countdownElements.length > 0) {
+      updateCountdowns();
+      setInterval(updateCountdowns, 1000);
+    }
+  });
+</script>
+{% endblock %}

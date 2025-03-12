@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}User Scores{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
+  <div class="container-fluid">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.user_dashboard') }}">Home</a></li>
+      <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ url_for('app_routes.user_scores') }}">Scores</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.user_summary') }}">Summary</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.logout') }}">Logout</a></li>
+    </ul>
+  </div>
+</nav>
+
+<h2 class="text-white mb-4">My Quiz Scores</h2>
+{% if scores %}
+<div class="table-responsive">
+  <table class="table table-bordered table-sm">
+    <thead class="table-dark">
+      <tr>
+        <th class="text-white">Quiz ID</th>
+        <th class="text-white">Score</th>
+        <th class="text-white">Date Attempted</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in scores %}
+      <tr>
+        <td class="text-white">{{ s.quiz_id }}</td>
+        <td class="text-white">{{ s.total_scored }}</td>
+        <td class="text-white">{{ s.time_stamp_of_attempt }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="text-white">No quiz attempts found.</p>
+{% endif %}
+{% endblock %}

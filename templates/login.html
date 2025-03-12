@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Login - Quiz Master{% endblock %}
+
+{% block content %}
+<h2 class="text-center mb-4 fw-bold text-white">Login to Quiz Master</h2>
+<form method="POST" action="{{ url_for('app_routes.login') }}" id="loginForm" novalidate>
+  <div class="mb-3">
+    <label for="username" class="form-label text-white">Username (E-mail):</label>
+    <input type="email" id="username" name="username" class="form-control" required placeholder="Enter your Gmail">
+    <div class="invalid-feedback">
+      This field is required.
+    </div>
+  </div>
+  <div class="mb-3">
+    <label for="password" class="form-label text-white">Password:</label>
+    <input type="password" id="password" name="password" class="form-control" required placeholder="Enter your password">
+    <div class="invalid-feedback">
+      This field is required.
+    </div>
+  </div>
+  <div class="mb-3 form-check">
+    <input type="checkbox" class="form-check-input" id="show_password">
+    <label class="form-check-label text-white" for="show_password">Show Password</label>
+  </div>
+  <button type="submit" class="btn btn-primary w-100">Login</button>
+  <p class="text-center mt-3 text-white">
+    <a href="{{ url_for('app_routes.reset_password') }}" class="text-info">Forgot Password?</a>
+  </p>
+  <p class="text-center mt-1 text-white">
+    Don't have an account? <a href="{{ url_for('app_routes.register') }}" class="text-info">Create Account</a>
+  </p>
+</form>
+<script>
+  // Show/Hide Password functionality for login
+  document.getElementById('show_password').addEventListener('change', function() {
+    const passField = document.getElementById('password');
+    passField.type = this.checked ? 'text' : 'password';
+  });
+  // Bootstrap custom validation for the login form
+  (function () {
+    'use strict'
+    var form = document.getElementById('loginForm');
+    form.addEventListener('submit', function (event) {
+      if (!form.checkValidity()) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+      form.classList.add('was-validated')
+    }, false)
+  })()
+</script>
+{% endblock %}

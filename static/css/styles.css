@@ -1,0 +1,52 @@
+/* styles.css */
+body {
+  margin: 0;
+  padding: 0;
+}
+.custom-nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(90deg, #141E30, #243B55) !important;
+  z-index: 999;
+  border: none;
+}
+.navbar-dark .navbar-brand,
+.navbar-dark .navbar-nav .nav-link {
+  color: #fff !important;
+}
+.starry-hero {
+  background: url('../images/pexels-felixmittermeier-956999.jpg') center center / cover no-repeat;
+  min-height: 100vh;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.starry-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 0;
+}
+.starry-hero .container {
+  position: relative;
+  z-index: 1;
+}
+.frosted-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  padding: 20px;
+}
+.text-white {
+  color: #fff !important;
+}
+.custom-nav {
+  position: static; /* or relative, if it was fixed previously */
+
+}
+

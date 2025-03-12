@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Add Subject - Quiz Master{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
+  <div class="container-fluid">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.admin_dashboard') }}">Home</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.quiz_management') }}">Quiz</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.logout') }}">Logout</a></li>
+    </ul>
+  </div>
+</nav>
+
+<h2 class="mb-4 text-white">Add Subject</h2>
+<form method="POST">
+  <div class="mb-3">
+    <label for="subject_name" class="form-label text-white">Subject Name:</label>
+    <input type="text" id="subject_name" name="subject_name" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label for="description" class="form-label text-white">Description:</label>
+    <textarea id="description" name="description" class="form-control" rows="3"></textarea>
+  </div>
+  <button type="submit" class="btn btn-primary">Add Subject</button>
+</form>
+{% endblock %}

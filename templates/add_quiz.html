@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Add Quiz - Quiz Master{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
+  <div class="container-fluid">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.admin_dashboard') }}">Home</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.quiz_management') }}">Quiz</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.logout') }}">Logout</a></li>
+    </ul>
+  </div>
+</nav>
+
+<h2 class="mb-4 text-white">Add New Quiz</h2>
+
+<form method="POST">
+  <div class="mb-3">
+    <label for="chapter_id" class="form-label text-white">Select Chapter:</label>
+    <select id="chapter_id" name="chapter_id" class="form-select" required>
+      <option value="">-- Select Chapter --</option>
+      {% for chapter in chapters %}
+      <option value="{{ chapter.id }}">{{ chapter.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  
+  <div class="mb-3">
+    <label for="quiz_name" class="form-label text-white">Quiz Name:</label>
+    <input type="text" id="quiz_name" name="quiz_name" class="form-control" required>
+  </div>
+  
+  <div class="mb-3">
+    <label for="date_of_quiz" class="form-label text-white">Date of Quiz (DD-MM-YY):</label>
+    <input type="text" id="date_of_quiz" name="date_of_quiz" class="form-control" placeholder="e.g., 11-03-25" required>
+    <small class="form-text text-white">Format: DD-MM-YY (e.g., 11-03-25 for March 11, 2025)</small>
+  </div>
+  
+  <div class="mb-3">
+    <label for="start_time" class="form-label text-white">Start Time (DD-MM-YY HH:MM):</label>
+    <input type="text" id="start_time" name="start_time" class="form-control" placeholder="e.g., 11-03-25 15:40" required>
+    <small class="form-text text-white">Format: DD-MM-YY HH:MM (e.g., 11-03-25 15:40 for March 11, 2025, 3:40 PM)</small>
+  </div>
+  
+  <div class="mb-3">
+    <label for="duration_minutes" class="form-label text-white">Duration (minutes):</label>
+    <input type="number" id="duration_minutes" name="duration_minutes" class="form-control" min="1" required>
+  </div>
+  
+  <button type="submit" class="btn btn-primary">Save Quiz</button>
+  <a href="{{ url_for('app_routes.quiz_management') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

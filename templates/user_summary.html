@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% block title %}User Summary{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
+  <div class="container-fluid">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.user_dashboard') }}">Home</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.user_scores') }}">Scores</a></li>
+      <li class="nav-item"><a class="nav-link active" href="{{ url_for('app_routes.user_summary') }}">Summary</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.logout') }}">Logout</a></li>
+    </ul>
+  </div>
+</nav>
+
+<h2 class="mb-4 text-white">Your Performance Summary</h2>
+
+<!-- Performance Overview -->
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body text-center">
+        <h5 class="card-title">Your Average Score</h5>
+        <p class="display-4 text-primary">{{ user_avg_score|round(1) }}%</p>
+        <p class="text-muted">Class Average: {{ class_avg_score|round(1) }}%</p>
+        <div class="progress">
+          <div class="progress-bar" role="progressbar" style="width: {{ user_avg_score }}%" aria-valuenow="{{ user_avg_score }}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body text-center">
+        <h5 class="card-title">Average Time Spent</h5>
+        <p class="display-4 text-success">{{ user_avg_time|round(1) }} min</p>
+        <p class="text-muted">Class Average: {{ class_avg_time|round(1) }} min</p>
+        <div class="progress">
+          <div class="progress-bar bg-success" role="progressbar" style="width: {{ (user_avg_time/class_avg_time*100)|round(1) if class_avg_time > 0 else 0 }}%" aria-valuenow="{{ user_avg_time }}" aria-valuemin="0" aria-valuemax="{{ class_avg_time*2 if class_avg_time > 0 else 100 }}"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body text-center">
+        <h5 class="card-title">Quizzes Completed</h5>
+        <p class="display-4 text-info">{{ quiz_count }}</p>
+        <p class="text-muted">Total Available: {{ total_quizzes }}</p>
+        <div class="progress">
+          <div class="progress-bar bg-info" role="progressbar" style="width: {{ (quiz_count/total_quizzes*100)|round(1) if total_quizzes > 0 else 0 }}%" aria-valuenow="{{ quiz_count }}" aria-valuemin="0" aria-valuemax="{{ total_quizzes }}"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quiz Comparison Table -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="mb-0">Your Quiz Performance</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Quiz Name</th>
+            <th>Your Score</th>
+            <th>Class Average</th>
+            <th>Time Spent</th>
+            <th>Avg Time Spent</th>
+            <th>Questions</th>
+            <th>Percentile</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for attempt in quiz_attempts %}
+          <tr>
+            <td>{{ attempt.quiz_name }}</td>
+            <td>
+              <span class="badge {% if attempt.score > attempt.avg_score %}bg-success{% elif attempt.score < attempt.avg_score %}bg-danger{% else %}bg-info{% endif %}">
+                {{ attempt.score|round(1) }}%
+              </span>
+            </td>
+            <td>{{ attempt.avg_score|round(1) }}%</td>
+            <td>{{ attempt.time_spent|round(1) }} min</td>
+            <td>{{ attempt.avg_time_spent|round(1) }} min</td>
+            <td>{{ attempt.questions_correct }}/{{ attempt.total_questions }}</td>
+            <td>{{ attempt.percentile|round(1) }}th</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Quiz Performance Chart -->
+    <canvas id="quizScoreChart" class="mt-4"></canvas>
+  </div>
+</div>
+
+<!-- Performance by Subject -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="mb-0">Subject Performance</h5>
+  </div>
+  <div class="card-body">
+    <canvas id="subjectPerformanceChart"></canvas>
+  </div>
+</div>
+
+<!-- Time Analysis per Question -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="mb-0">Time Analysis</h5>
+  </div>
+  <div class="card-body">
+    <p>Average time spent per question: <strong>{{ avg_time_per_question|round(1) }} seconds</strong> (Class average: {{ class_avg_time_per_question|round(1) }} seconds)</p>
+    
+    <div class="row mt-3">
+      <div class="col-md-6">
+        <h6>You spend more time on:</h6>
+        <ul class="list-group">
+          {% for topic in time_consuming_topics %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            {{ topic.name }}
+            <span class="badge bg-primary rounded-pill">{{ topic.time|round(1) }} sec</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="col-md-6">
+        <h6>You're quick at:</h6>
+        <ul class="list-group">
+          {% for topic in time_efficient_topics %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            {{ topic.name }}
+            <span class="badge bg-success rounded-pill">{{ topic.time|round(1) }} sec</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Questions to Review -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="mb-0">Questions to Review</h5>
+  </div>
+  <div class="card-body">
+    {% if incorrect_questions %}
+      <div class="accordion" id="incorrectQuestionsAccordion">
+        {% for q in incorrect_questions %}
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="heading-{{ q.id }}">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ q.id }}" aria-expanded="false" aria-controls="collapse-{{ q.id }}">
+                <span class="badge bg-danger me-2">{{ q.quiz_name }}</span>
+                {{ q.question_statement }}
+              </button>
+            </h2>
+            <div id="collapse-{{ q.id }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ q.id }}" data-bs-parent="#incorrectQuestionsAccordion">
+              <div class="accordion-body">
+                <p><strong>Your Answer:</strong> {{ q.user_answer }}</p>
+                <p><strong>Correct Answer:</strong> {{ q.correct_answer }}</p>
+                <p><strong>Explanation:</strong> {{ q.explanation }}</p>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-center py-4">No questions to review. Great job!</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Instructor Comments -->
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0">Instructor Feedback</h5>
+  </div>
+  <div class="card-body">
+    {% if comments %}
+      <div class="list-group">
+        {% for comment in comments %}
+          <div class="list-group-item">
+            <div class="d-flex w-100 justify-content-between">
+              <h6 class="mb-1">{{ comment.quiz_name }}</h6>
+              <small>{{ comment.created_at.strftime('%Y-%m-%d') }}</small>
+            </div>
+            <p class="mb-1">{{ comment.comment_text }}</p>
+            <small>By: {{ comment.admin_name }}</small>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-center py-4">No feedback available yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Quiz performance chart
+  var ctxQuiz = document.getElementById('quizScoreChart').getContext('2d');
+  var quizScoreChart = new Chart(ctxQuiz, {
+    type: 'line',
+    data: {
+      labels: {{ quiz_labels|tojson }},
+      datasets: [
+        {
+          label: 'Your Score',
+          data: {{ quiz_scores|tojson }},
+          borderColor: 'rgba(75, 192, 192, 1)',
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          tension: 0.1,
+          fill: true
+        },
+        {
+          label: 'Class Average',
+          data: {{ class_avg_scores|tojson }},
+          borderColor: 'rgba(153, 102, 255, 1)',
+          backgroundColor: 'rgba(153, 102, 255, 0.2)',
+          borderDash: [5, 5],
+          tension: 0.1,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100
+        }
+      }
+    }
+  });
+  
+  // Subject performance chart
+  var ctxSubject = document.getElementById('subjectPerformanceChart').getContext('2d');
+  var subjectChart = new Chart(ctxSubject, {
+    type: 'radar',
+    data: {
+      labels: {{ subject_labels|tojson }},
+      datasets: [{
+        label: 'Your Performance',
+        data: {{ subject_scores|tojson }},
+        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: 'rgba(54, 162, 235, 1)'
+      }]
+    },
+    options: {
+      scales: {
+        r: {
+          angleLines: {
+            display: true
+          },
+          suggestedMin: 0,
+          suggestedMax: 100
+        }
+      }
+    }
+  });
+</script>
+{% endblock %}

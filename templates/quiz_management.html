@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Quiz Management - Quiz Master{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
+  <div class="container-fluid">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.admin_dashboard') }}">Home</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.admin_summary') }}">Summary</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.logout') }}">Logout</a></li>
+    </ul>
+    <div class="d-flex">
+      <input id="liveSearch" class="form-control me-2" type="search" placeholder="Search quizzes...">
+    </div>
+  </div>
+</nav>
+
+<h2 class="text-white mb-4">Quiz Management</h2>
+<div id="no-results-message" class="alert alert-info mt-3" style="display: none;">
+  No quizzes found matching your search.
+</div>
+<div class="row" id="quizzes-container">
+  {% for quiz in quizzes %}
+  <div class="col-md-6 mb-4 quiz-card" data-quiz-name="{{ quiz.name|lower if quiz.name else 'no name' }}" data-chapter-name="{{ quiz.chapter.name|lower }}">
+    <div class="p-3 border rounded">
+      <h4 class="text-white">Quiz #{{ quiz.id }}: {{ quiz.name or 'No Name' }}</h4>
+      <p class="text-white">Chapter: {{ quiz.chapter.name }}</p>
+      <p class="text-white">Scheduled at: {% if quiz.start_time %}{{ quiz.start_time.strftime("%Y-%m-%d %H:%M") }}{% else %}N/A{% endif %}</p>
+      <p class="text-white">Questions: {{ quiz.questions|length }}</p>
+      <table class="table table-bordered table-sm">
+        <thead class="table-dark">
+          <tr>
+            <th class="text-white">Question</th>
+            <th class="text-white">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for q in quiz.questions %}
+          <tr class="question-row" data-question-text="{{ q.question_statement|lower }}">
+            <td class="text-white">{{ q.question_statement }}</td>
+            <td>
+              <div class="d-grid d-md-inline-flex gap-2">
+                <a href="{{ url_for('app_routes.edit_question', question_id=q.id) }}" class="btn btn-info btn-sm">Edit</a>
+                <form method="POST" action="{{ url_for('app_routes.delete_question', question_id=q.id) }}" class="d-inline">
+                  <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="text-end">
+        <a href="{{ url_for('app_routes.add_question', quiz_id=quiz.id) }}" class="btn btn-success btn-sm">+ Question</a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<div class="mt-3">
+  <a href="{{ url_for('app_routes.add_quiz') }}" class="btn btn-warning btn-sm">+ New Quiz</a>
+</div>
+
+<script>
+  // Live search functionality
+  document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('liveSearch');
+    const quizCards = document.querySelectorAll('.quiz-card');
+    const noResultsMessage = document.getElementById('no-results-message');
+    
+    searchInput.addEventListener('input', function() {
+      const searchTerm = this.value.trim().toLowerCase();
+      let matchFound = false;
+      
+      quizCards.forEach(card => {
+        const quizName = card.getAttribute('data-quiz-name');
+        const chapterName = card.getAttribute('data-chapter-name');
+        const questionRows = card.querySelectorAll('.question-row');
+        
+        // Check if quiz name or chapter name matches
+        let cardHasMatch = quizName.includes(searchTerm) || chapterName.includes(searchTerm);
+        
+        // Check if any question matches
+        questionRows.forEach(row => {
+          const questionText = row.getAttribute('data-question-text');
+          if (questionText.includes(searchTerm)) {
+            cardHasMatch = true;
+            row.style.display = '';
+          } else if (searchTerm) {
+            // Only hide individual questions when searching and they don't match
+            row.style.display = 'none';
+          } else {
+            row.style.display = '';
+          }
+        });
+        
+        // Show/hide entire quiz card
+        if (cardHasMatch || !searchTerm) {
+          card.style.display = '';
+          matchFound = true;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+      
+      // Toggle no results message
+      if (!matchFound && searchTerm) {
+        noResultsMessage.style.display = 'block';
+      } else {
+        noResultsMessage.style.display = 'none';
+      }
+    });
+  });
+</script>
+{% endblock %}

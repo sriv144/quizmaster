@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}Admin Summary - Quiz Master{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
+  <div class="container-fluid">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.admin_dashboard') }}">Home</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.quiz_management') }}">Quiz</a></li>
+      <li class="nav-item"><a class="nav-link active" href="{{ url_for('app_routes.admin_summary') }}">Summary</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('app_routes.logout') }}">Logout</a></li>
+    </ul>
+  </div>
+</nav>
+
+<h2 class="mb-4 text-white">Performance Summary</h2>
+
+<!-- Sort by options -->
+<div class="mb-4">
+  <form method="GET" class="d-flex gap-2">
+    <label class="form-label text-white my-auto">Sort by:</label>
+    <select name="sort_by" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+      <option value="user" {% if sort_by == 'user' %}selected{% endif %}>User</option>
+      <option value="subject" {% if sort_by == 'subject' %}selected{% endif %}>Subject</option>
+      <option value="quiz" {% if sort_by == 'quiz' %}selected{% endif %}>Quiz</option>
+      <option value="score" {% if sort_by == 'score' %}selected{% endif %}>Score (High to Low)</option>
+      <option value="time" {% if sort_by == 'time' %}selected{% endif %}>Time Spent</option>
+      <option value="completion" {% if sort_by == 'completion' %}selected{% endif %}>Completion Rate</option>
+    </select>
+  </form>
+</div>
+
+<!-- Statistics Dashboard -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card bg-primary text-white">
+      <div class="card-body">
+        <h5 class="card-title">Average Score</h5>
+        <p class="card-text display-6">{{ avg_score|round(1) }}%</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-success text-white">
+      <div class="card-body">
+        <h5 class="card-title">Average Time Spent</h5>
+        <p class="card-text display-6">{{ avg_time|round(1) }} min</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-info text-white">
+      <div class="card-body">
+        <h5 class="card-title">Total Quizzes</h5>
+        <p class="card-text display-6">{{ quiz_count }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-warning text-white">
+      <div class="card-body">
+        <h5 class="card-title">Total Students</h5>
+        <p class="card-text display-6">{{ student_count }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Performance by User Chart -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="mb-0">Performance by User</h5>
+  </div>
+  <div class="card-body">
+    <canvas id="userScoreChart"></canvas>
+  </div>
+</div>
+
+<!-- Most Difficult Questions Analysis -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="mb-0">Most Difficult Questions</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Question</th>
+            <th>Quiz</th>
+            <th>Incorrect Rate</th>
+            <th>Average Time Spent</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for q in difficult_questions %}
+          <tr>
+            <td>{{ q.statement }}</td>
+            <td>{{ q.quiz_name }}</td>
+            <td>{{ q.incorrect_rate }}%</td>
+            <td>{{ q.avg_time_spent }} sec</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Detailed Results Table -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Detailed Results</h5>
+    <div>
+      <button type="button" class="btn btn-sm btn-outline-primary" onclick="window.print()">Print Report</button>
+      <button type="button" class="btn btn-sm btn-outline-success" onclick="exportToCSV()">Export CSV</button>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-striped table-hover" id="resultsTable">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Subject</th>
+            <th>Chapter</th>
+            <th>Quiz</th>
+            <th>Score</th>
+            <th>Time Spent</th>
+            <th>Attempted On</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in data %}
+          <tr>
+            <td>{{ row.username }}</td>
+            <td>{{ row.subject_name }}</td>
+            <td>{{ row.chapter_name }}</td>
+            <td>{{ row.quiz_name if row.quiz_name else ('Quiz #' ~ row.quiz_id) }}</td>
+            <td>{{ row.total_scored }}</td>
+            <td>{{ row.time_spent }} sec</td>
+            <td>{{ row.time_stamp_of_attempt }}</td>
+            <td>
+              <button type="button" class="btn btn-sm btn-primary" 
+                      data-bs-toggle="modal" 
+                      data-bs-target="#commentModal-{{ row.score_id }}">
+                Add Comment
+              </button>
+              <a href="{{ url_for('app_routes.view_attempt_details', score_id=row.score_id) }}" 
+                 class="btn btn-sm btn-info">
+                View Details
+              </a>
+              
+              <!-- Comment Modal -->
+              <div class="modal fade" id="commentModal-{{ row.score_id }}" tabindex="-1">
+                <div class="modal-dialog">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h5 class="modal-title">Add Comment for {{ row.username }}</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('app_routes.add_score_comment', score_id=row.score_id) }}">
+                      <div class="modal-body">
+                        <div class="mb-3">
+                          <label for="comment-{{ row.score_id }}" class="form-label">Your Feedback:</label>
+                          <textarea class="form-control" id="comment-{{ row.score_id }}" 
+                                    name="comment" rows="3" required></textarea>
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Save Comment</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Chart for user scores
+  var ctx = document.getElementById('userScoreChart').getContext('2d');
+  var userScoreChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: {{ chart_labels|tojson }},
+      datasets: [{
+        label: 'Total Score',
+        data: {{ chart_data|tojson }},
+        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+  
+  // Export table to CSV
+  function exportToCSV() {
+    const table = document.getElementById('resultsTable');
+    let csv = [];
+    const rows = table.querySelectorAll('tr');
+    
+    for (let i = 0; i < rows.length; i++) {
+      const row = [], cols = rows[i].querySelectorAll('td, th');
+      
+      for (let j = 0; j < cols.length - 1; j++) { // Skip last column (Actions)
+        // Get text content and escape quotes
+        let data = cols[j].textContent.replace(/"/g, '""');
+        row.push('"' + data + '"');
+      }
+      csv.push(row.join(','));
+    }
+    
+    // Download CSV file
+    downloadCSV(csv.join('\n'), 'quiz_results.csv');
+  }
+  
+  function downloadCSV(csv, filename) {
+    const csvFile = new Blob([csv], {type: 'text/csv'});
+    const downloadLink = document.createElement('a');
+    
+    downloadLink.download = filename;
+    downloadLink.href = window.URL.createObjectURL(csvFile);
+    downloadLink.style.display = 'none';
+    document.body.appendChild(downloadLink);
+    
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  }
+</script>
+{% endblock %}
