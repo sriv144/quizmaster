@@ -184,7 +184,6 @@ def admin_summary():
     
     sort_by = request.args.get("sort_by", "user")
     
-    # Base query for the admin summary data
     query = db.session.query(
         Score.id.label("score_id"),
         Score.total_scored,
@@ -203,7 +202,6 @@ def admin_summary():
     ).join(Chapter, Chapter.id == Quiz.chapter_id
     ).join(Subject, Subject.id == Chapter.subject_id)
     
-    # Apply sorting based on the selected criteria
     if sort_by == "subject":
         query = query.order_by(Subject.name)
     elif sort_by == "quiz":
@@ -212,22 +210,11 @@ def admin_summary():
         query = query.order_by(Score.total_scored.desc())
     elif sort_by == "time":
         query = query.order_by(Score.time_spent.desc())
-    elif sort_by == "completion":
-        # Sort by completion status - requires joining with the quiz table again
-        query = query.order_by(Score.completion_status, User.username)
     else:
-        # Default sort by user
         query = query.order_by(User.username)
     
     results = query.all()
     
-    # Calculate statistics for display in the summary cards
-    avg_score = db.session.query(func.avg(Score.total_scored)).scalar() or 0
-    avg_time = db.session.query(func.avg(Score.time_spent)).scalar() or 0
-    quiz_count = Quiz.query.count()
-    student_count = User.query.filter_by(role="user").count()
-    
-    # Prepare chart data for the user performance chart
     user_scores_map = {}
     for row in results:
         uname = row.username
@@ -237,51 +224,11 @@ def admin_summary():
     chart_labels = list(user_scores_map.keys())
     chart_data = list(user_scores_map.values())
     
-    # Get data for difficult questions analysis
-    # Using a subquery to find questions with low success rates
-    difficult_questions_data = []
-    questions_with_attempts = db.session.query(
-        QuestionAttempt.question_id,
-        func.count(QuestionAttempt.id).label('total_attempts'),
-        func.sum(case((QuestionAttempt.is_correct == True, 1), else_=0)).label('correct_attempts'),
-        func.avg(QuestionAttempt.time_spent).label('avg_time')
-    ).group_by(QuestionAttempt.question_id).subquery()
-    
-    difficult_questions = db.session.query(
-        Question.id,
-        Question.question_statement.label('statement'),
-        Quiz.name.label('quiz_name'),
-        (100 - (100 * questions_with_attempts.c.correct_attempts / questions_with_attempts.c.total_attempts)).label('incorrect_rate'),
-        questions_with_attempts.c.avg_time.label('avg_time_spent')
-    ).join(
-        questions_with_attempts, Question.id == questions_with_attempts.c.question_id
-    ).join(
-        Quiz, Question.quiz_id == Quiz.id
-    ).filter(
-        questions_with_attempts.c.total_attempts > 5  # Only consider questions with sufficient attempts
-    ).order_by(
-        (100 * questions_with_attempts.c.correct_attempts / questions_with_attempts.c.total_attempts).asc()
-    ).limit(10).all()
-    
-    # Format the difficult questions data for the template
-    for q in difficult_questions:
-        difficult_questions_data.append({
-            'statement': q.statement,
-            'quiz_name': q.quiz_name,
-            'incorrect_rate': round((q.incorrect_rate or 0), 1),
-            'avg_time_spent': round((q.avg_time_spent or 0), 1)
-        })
-    
     return render_template("admin_summary.html",
-                          data=results,
-                          sort_by=sort_by,
-                          chart_labels=chart_labels,
-                          chart_data=chart_data,
-                          avg_score=avg_score,
-                          avg_time=avg_time/60 if avg_time else 0,  # Convert seconds to minutes
-                          quiz_count=quiz_count,
-                          student_count=student_count,
-                          difficult_questions=difficult_questions_data)
+                           data=results,
+                           sort_by=sort_by,
+                           chart_labels=chart_labels,
+                           chart_data=chart_data)
 
 @app_routes.route("/admin/add_subject", methods=["GET", "POST"])
 def add_subject():
@@ -588,274 +535,34 @@ def user_summary():
         flash("Access denied! Users only.", "danger")
         return redirect(url_for("app_routes.login"))
     
-    user_id = session.get('user_id')
-    
-    # Get user's quiz scores
+    user_id = session['user_id']
     user_scores = Score.query.filter_by(user_id=user_id).order_by(Score.time_stamp_of_attempt.asc()).all()
     
-    # Initialize data containers for charts and tables
     quiz_labels = []
     quiz_scores = []
-    class_avg_scores = []
-    quiz_attempts = []
-    
     total_correct = 0
-    total_questions = 0
-    total_time_spent = 0
+    total_possible = 0
     
-    for score in user_scores:
-        quiz = Quiz.query.get(score.quiz_id)
-        if not quiz:
+    for score_obj in user_scores:
+        quiz_obj = Quiz.query.get(score_obj.quiz_id)
+        if not quiz_obj:
             continue
         
-        # Add quiz data for the line chart
-        quiz_name = quiz.name or f"Quiz #{quiz.id}"
-        quiz_labels.append(quiz_name)
+        label = f"Quiz {score_obj.quiz_id}"
+        quiz_labels.append(label)
+        quiz_scores.append(score_obj.total_scored)
         
-        # Calculate score percentage
-        questions = Question.query.filter_by(quiz_id=quiz.id).all()
-        max_possible_score = sum(q.marks for q in questions) if questions else 0
-        user_score_percent = (score.total_scored / max_possible_score * 100) if max_possible_score > 0 else 0
-        quiz_scores.append(user_score_percent)
-        
-        # Get class average for comparison
-        avg_score_for_quiz = db.session.query(func.avg(Score.total_scored)).filter(
-            Score.quiz_id == quiz.id,
-            Score.user_id != user_id  # Exclude current user
-        ).scalar() or 0
-        avg_score_percent = (avg_score_for_quiz / max_possible_score * 100) if max_possible_score > 0 else 0
-        class_avg_scores.append(avg_score_percent)
-        
-        # Get time data
-        time_spent_mins = score.time_spent / 60 if score.time_spent else 0
-        avg_time_mins = quiz.avg_time / 60 if quiz.avg_time else 0
-        
-        # Calculate percentile by seeing what percentage of people scored lower
-        user_rank = db.session.query(func.count(Score.id)).filter(
-            Score.quiz_id == quiz.id,
-            Score.total_scored < score.total_scored
-        ).scalar() or 0
-        total_attempts = db.session.query(func.count(Score.id)).filter(
-            Score.quiz_id == quiz.id
-        ).scalar() or 1
-        percentile = (user_rank / total_attempts * 100) if total_attempts > 0 else 0
-        
-        # Add data for the detailed attempts table
-        quiz_attempts.append({
-            'quiz_name': quiz_name,
-            'score': user_score_percent,
-            'avg_score': avg_score_percent,
-            'time_spent': time_spent_mins,
-            'avg_time_spent': avg_time_mins,
-            'questions_correct': score.questions_correct if hasattr(score, 'questions_correct') else 0,
-            'total_questions': score.total_questions if hasattr(score, 'total_questions') else len(questions),
-            'percentile': percentile
-        })
-        
-        # Accumulate totals for overall statistics
-        total_correct += score.total_scored
-        total_questions += max_possible_score
-        total_time_spent += score.time_spent if score.time_spent else 0
+        num_questions = len(quiz_obj.questions)
+        total_correct += score_obj.total_scored
+        total_possible += num_questions
     
-    # Get subject performance data for radar chart
-    subject_labels = []
-    subject_scores = []
-    
-    # Get all subjects
-    subjects = Subject.query.all()
-    for subject in subjects:
-        subject_labels.append(subject.name)
-        
-        # Get all quizzes for this subject through chapters
-        subject_chapters = Chapter.query.filter_by(subject_id=subject.id).all()
-        chapter_ids = [chapter.id for chapter in subject_chapters]
-        
-        # Skip if no chapters found
-        if not chapter_ids:
-            subject_scores.append(0)
-            continue
-        
-        subject_quizzes = Quiz.query.filter(Quiz.chapter_id.in_(chapter_ids)).all()
-        quiz_ids = [quiz.id for quiz in subject_quizzes]
-        
-        # Skip if no quizzes found
-        if not quiz_ids:
-            subject_scores.append(0)
-            continue
-        
-        # Calculate average score for this subject
-        subject_scores_list = Score.query.filter(
-            Score.quiz_id.in_(quiz_ids),
-            Score.user_id == user_id
-        ).all()
-        
-        if not subject_scores_list:
-            subject_scores.append(0)
-            continue
-        
-        # Calculate total scored vs maximum possible
-        subject_total_scored = sum(score.total_scored for score in subject_scores_list)
-        subject_total_possible = 0
-        
-        for quiz_id in quiz_ids:
-            questions = Question.query.filter_by(quiz_id=quiz_id).all()
-            subject_total_possible += sum(q.marks for q in questions)
-        
-        if subject_total_possible > 0:
-            subject_score_percent = (subject_total_scored / subject_total_possible * 100)
-        else:
-            subject_score_percent = 0
-        
-        subject_scores.append(subject_score_percent)
-    
-    # Get timing analysis data
-    question_attempts = QuestionAttempt.query.filter_by(user_id=user_id).all()
-    total_questions_attempted = len(question_attempts)
-    
-    avg_time_per_question = 0
-    if total_questions_attempted > 0:
-        avg_time_per_question = sum(qa.time_spent for qa in question_attempts if qa.time_spent) / total_questions_attempted
-    
-    # Calculate class average time per question
-    class_avg_time_per_question = db.session.query(func.avg(QuestionAttempt.time_spent)).filter(
-        QuestionAttempt.user_id != user_id
-    ).scalar() or 0
-    
-    # Find topics that take more/less time
-    time_consuming_topics = []
-    time_efficient_topics = []
-    
-    # Group question attempts by chapter to find time trends
-    chapter_times = {}
-    for qa in question_attempts:
-        question = Question.query.get(qa.question_id)
-        if not question:
-            continue
-            
-        quiz = Quiz.query.get(question.quiz_id)
-        if not quiz:
-            continue
-            
-        chapter = Chapter.query.get(quiz.chapter_id)
-        if not chapter:
-            continue
-            
-        chapter_times.setdefault(chapter.id, {'name': chapter.name, 'times': []})
-        chapter_times[chapter.id]['times'].append(qa.time_spent if qa.time_spent else 0)
-    
-    # Calculate average time for each chapter
-    chapter_avg_times = []
-    for chapter_id, data in chapter_times.items():
-        if data['times']:
-            avg_time = sum(data['times']) / len(data['times'])
-            chapter_avg_times.append({'name': data['name'], 'time': avg_time})
-    
-    # Sort chapters by time
-    chapter_avg_times.sort(key=lambda x: x['time'], reverse=True)
-    
-    # Get top 3 time-consuming and time-efficient topics
-    time_consuming_topics = chapter_avg_times[:3] if len(chapter_avg_times) >= 3 else chapter_avg_times
-    time_efficient_topics = chapter_avg_times[-3:][::-1] if len(chapter_avg_times) >= 3 else chapter_avg_times[::-1]
-    
-    # Get questions the user answered incorrectly for review
-    incorrect_questions = []
-    
-    incorrect_attempts = QuestionAttempt.query.filter_by(
-        user_id=user_id, 
-        is_correct=False
-    ).order_by(QuestionAttempt.attempt_time.desc()).limit(10).all()
-    
-    for attempt in incorrect_attempts:
-        question = Question.query.get(attempt.question_id)
-        if not question:
-            continue
-            
-        quiz = Quiz.query.get(question.quiz_id)
-        quiz_name = quiz.name if quiz else f"Quiz #{question.quiz_id}"
-        
-        incorrect_questions.append({
-            'id': question.id,
-            'quiz_name': quiz_name,
-            'question_statement': question.question_statement,
-            'user_answer': attempt.user_answer or "No answer provided",
-            'correct_answer': question.correct_option,
-            'explanation': "The correct answer was " + question.correct_option  # Basic explanation
-        })
-    
-    # Get instructor comments for the user
-    comments = []
-    user_scores_ids = [score.id for score in user_scores]
-    
-    if user_scores_ids:
-        score_comments = ScoreComment.query.filter(
-            ScoreComment.score_id.in_(user_scores_ids)
-        ).order_by(ScoreComment.created_at.desc()).all()
-        
-        for comment in score_comments:
-            admin = User.query.get(comment.admin_id)
-            score = Score.query.get(comment.score_id)
-            
-            if not score or not admin:
-                continue
-                
-            quiz = Quiz.query.get(score.quiz_id)
-            quiz_name = quiz.name if quiz else f"Quiz #{score.quiz_id}"
-            
-            comments.append({
-                'quiz_name': quiz_name,
-                'comment_text': comment.comment_text,
-                'admin_name': admin.full_name or admin.username,
-                'created_at': comment.created_at
-            })
-    
-    # Calculate overall statistics
-    user_avg_score = (total_correct / total_questions * 100) if total_questions > 0 else 0
-    user_avg_time = total_time_spent / len(user_scores) / 60 if user_scores else 0  # Convert to minutes
-    
-    # Get class averages for comparison
-    class_avg_score_raw = db.session.query(func.avg(Score.total_scored)).filter(
-        Score.user_id != user_id
-    ).scalar() or 0
-    
-    class_avg_time_raw = db.session.query(func.avg(Score.time_spent)).filter(
-        Score.user_id != user_id
-    ).scalar() or 0
-    
-    # Calculate percentage for class average
-    avg_possible_score = db.session.query(
-        func.avg(func.sum(Question.marks))
-    ).join(
-        Quiz, Question.quiz_id == Quiz.id
-    ).group_by(
-        Quiz.id
-    ).scalar() or 1
-    
-    class_avg_score = (class_avg_score_raw / avg_possible_score * 100) if avg_possible_score > 0 else 0
-    class_avg_time = class_avg_time_raw / 60 if class_avg_time_raw else 0  # Convert to minutes
-    
-    # Get total available quizzes
-    total_quizzes = Quiz.query.count()
+    total_incorrect = max(0, total_possible - total_correct)
     
     return render_template("user_summary.html",
-                          quiz_labels=quiz_labels,
-                          quiz_scores=quiz_scores,
-                          class_avg_scores=class_avg_scores,
-                          quiz_attempts=quiz_attempts,
-                          subject_labels=subject_labels,
-                          subject_scores=subject_scores,
-                          user_avg_score=user_avg_score,
-                          user_avg_time=user_avg_time,
-                          class_avg_score=class_avg_score,
-                          class_avg_time=class_avg_time,
-                          quiz_count=len(user_scores),
-                          total_quizzes=total_quizzes,
-                          avg_time_per_question=avg_time_per_question,
-                          class_avg_time_per_question=class_avg_time_per_question,
-                          time_consuming_topics=time_consuming_topics,
-                          time_efficient_topics=time_efficient_topics,
-                          incorrect_questions=incorrect_questions,
-                          comments=comments)
-
+                           quiz_labels=quiz_labels,
+                           quiz_scores=quiz_scores,
+                           total_correct=total_correct,
+                           total_incorrect=total_incorrect)
 
 @app_routes.route("/user/attempt_quiz/<int:quiz_id>", methods=["GET", "POST"])
 def attempt_quiz(quiz_id):
@@ -932,65 +639,3 @@ def quiz_timeout():
     quiz_id = request.form.get("quiz_id")
     flash("Your quiz time has expired.", "warning")
     return redirect(url_for("app_routes.user_dashboard"))
-
-@app_routes.route("/admin/add_score_comment/<int:score_id>", methods=["POST"])
-def add_score_comment(score_id):
-    if session.get("role") != "admin":
-        flash("Access denied! Admins only.", "danger")
-        return redirect(url_for("app_routes.login"))
-    
-    score = Score.query.get_or_404(score_id)
-    comment = request.form.get("comment", "").strip()
-    
-    if comment:
-        new_comment = ScoreComment(
-            score_id=score_id,
-            admin_id=session['user_id'],
-            comment_text=comment
-        )
-        db.session.add(new_comment)
-        db.session.commit()
-        flash("Comment added successfully!", "success")
-    else:
-        flash("Comment cannot be empty!", "warning")
-    
-    return redirect(url_for("app_routes.admin_summary"))
-
-# Add route for viewing attempt details
-@app_routes.route("/admin/view_attempt_details/<int:score_id>")
-def view_attempt_details(score_id):
-    if session.get("role") != "admin":
-        flash("Access denied! Admins only.", "danger")
-        return redirect(url_for("app_routes.login"))
-    
-    score = Score.query.get_or_404(score_id)
-    user = User.query.get(score.user_id)
-    quiz = Quiz.query.get(score.quiz_id)
-    
-    if not user or not quiz:
-        flash("User or quiz not found.", "danger")
-        return redirect(url_for("app_routes.admin_summary"))
-    
-    question_attempts = QuestionAttempt.query.filter_by(score_id=score_id).all()
-    question_details = []
-    
-    for attempt in question_attempts:
-        question = Question.query.get(attempt.question_id)
-        if not question:
-            continue
-        
-        is_correct = attempt.is_correct
-        question_details.append({
-            'question': question.question_statement,
-            'correct_answer': question.correct_option,
-            'user_answer': attempt.user_answer,
-            'is_correct': is_correct,
-            'time_spent': attempt.time_spent,
-            'marks': question.marks
-        })
-    
-    return render_template("attempt_details.html", 
-                          score=score,
-                          user=user,
-                          quiz=quiz,
-                          question_details=question_details)
