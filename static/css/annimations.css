@@ -1,0 +1,153 @@
+/* animations.css - Cosmic Animation Collection Inspired by Modern UIs */
+
+/* Fade In Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .fade-in {
+    animation: fadeIn 1s ease-in;
+  }
+  
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .fade-in-up {
+    animation: fadeInUp 0.8s ease-out forwards;
+  }
+  
+  /* Staggered Children Animations */
+  .stagger-children > * {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.5s ease-out forwards;
+  }
+  .stagger-children > *:nth-child(1) { animation-delay: 0.1s; }
+  .stagger-children > *:nth-child(2) { animation-delay: 0.2s; }
+  .stagger-children > *:nth-child(3) { animation-delay: 0.3s; }
+  .stagger-children > *:nth-child(4) { animation-delay: 0.4s; }
+  .stagger-children > *:nth-child(5) { animation-delay: 0.5s; }
+  .stagger-children > *:nth-child(6) { animation-delay: 0.6s; }
+  
+  /* Cosmic Pulse Effect */
+  @keyframes cosmicPulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+    }
+    70% {
+      box-shadow: 0 0 0 15px rgba(255, 255, 255, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    }
+  }
+  .cosmic-pulse {
+    animation: cosmicPulse 2s infinite;
+  }
+  
+  /* Star Twinkling Effect */
+  @keyframes twinkle {
+    0% { opacity: 0.3; }
+    50% { opacity: 1; }
+    100% { opacity: 0.3; }
+  }
+  .star {
+    position: absolute;
+    background-color: white;
+    border-radius: 50%;
+    z-index: 0;
+  }
+  .star-field {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .star-tiny {
+    width: 1px;
+    height: 1px;
+    animation: twinkle 3s infinite;
+  }
+  .star-small {
+    width: 2px;
+    height: 2px;
+    animation: twinkle 4s infinite 0.5s;
+  }
+  .star-medium {
+    width: 3px;
+    height: 3px;
+    animation: twinkle 5s infinite 1s;
+  }
+  
+  /* Floating Animation */
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+  }
+  .floating { animation: float 6s ease-in-out infinite; }
+  .floating-slow { animation: float 8s ease-in-out infinite; }
+  .floating-fast { animation: float 4s ease-in-out infinite; }
+  
+  /* Rotate Animation */
+  @keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .rotate { animation: rotate 20s linear infinite; }
+  
+  /* Glow Effect */
+  @keyframes glow {
+    0% { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.7)); }
+    50% { filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.9)); }
+    100% { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.7)); }
+  }
+  .glow { animation: glow 3s ease-in-out infinite; }
+  
+  /* Page Transition Animation */
+  @keyframes pageTransition {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .page-transition {
+    animation: pageTransition 0.5s ease-out;
+  }
+  
+  /* Button Hover Animation */
+  .btn-hover-effect {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-hover-effect:after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 300%;
+    height: 300%;
+    background: rgba(255, 255, 255, 0.1);
+    transform: translate(-50%, -50%) scale(0);
+    border-radius: 50%;
+    opacity: 0;
+    transition: transform 0.5s, opacity 0.5s;
+  }
+  .btn-hover-effect:hover:after {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  
+  /* Parallax Scroll Effect (to be used with JS if needed) */
+  .parallax-element {
+    transition: transform 0.1s ease-out;
+    will-change: transform;
+  }
+  

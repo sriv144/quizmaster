@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}Register - Quiz Master{% endblock %}
+
+{% block content %}
+<style>
+  /* ----- BODY / PAGE BACKGROUND ----- */
+  body {
+    background-color: #0f0f0f; /* Overall dark background */
+    color: #fff;
+    font-family: "Roboto", sans-serif;
+  }
+
+  /* ----- HERO SECTION ----- */
+  .hero-text h1 {
+    font-size: 2.2rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+  .hero-text p {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 2rem; /* Increased spacing below paragraph */
+  }
+
+  /* ----- REGISTRATION CARD ----- */
+  .registration-card {
+    background-color: #1c1c1c;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+  }
+
+  /* ----- FORM LABELS & SPACING ----- */
+  .form-label {
+    margin-bottom: 0.5rem; /* More space between label and input */
+    font-weight: 500;
+  }
+  .mb-4 {
+    margin-bottom: 1.5rem !important; /* Increase vertical spacing for form groups */
+  }
+
+  /* ----- CUSTOM BUTTON ----- */
+  .btn-primary {
+    background: #00c9ff;
+    border: none;
+    transition: background 0.3s ease, transform 0.2s ease;
+  }
+  .btn-primary:hover {
+    background: #00c9ff;
+    transform: translateY(-2px);
+  }
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+
+  /* ----- LINKS ----- */
+  a.text-info {
+    color: #00c9ff !important;
+    transition: color 0.3s ease;
+  }
+  a.text-info:hover {
+    color: #66e0ff !important;
+    text-decoration: underline;
+  }
+
+  /* ----- PASSWORD MATCH WARNING ----- */
+  #password_match_msg {
+    font-weight: 600;
+  }
+</style>
+
+<div class="container my-5">
+  <div class="row align-items-center">
+    <!-- Left side: Hero text -->
+    <div class="col-md-6 mb-4 mb-md-0 hero-text">
+      <h1>Master knowledge, ace every quiz</h1>
+      <p>Join thousands of students enhancing their learning with our interactive quiz platform.</p>
+    </div>
+    
+    <!-- Right side: Registration Form -->
+    <div class="col-md-6">
+      <div class="registration-card">
+        <h4 class="mb-4">Create your account</h4>
+        
+        <form 
+          method="POST" 
+          action="{{ url_for('app_routes.register') }}" 
+          id="registerForm"
+          novalidate
+        >
+          <!-- Email -->
+          <div class="mb-4">
+            <label for="username" class="form-label">User name (E-mail):</label>
+            <input 
+              type="email" 
+              class="form-control" 
+              id="username" 
+              name="username" 
+              required 
+              placeholder="Enter your Gmail (e.g. example@gmail.com)"
+            >
+          </div>
+
+          <!-- Password & Confirm Password -->
+          <div class="row mb-4">
+            <div class="col-md-6 mb-4 mb-md-0">
+              <label for="password" class="form-label">Password:</label>
+              <input 
+                type="password" 
+                class="form-control" 
+                id="password" 
+                name="password" 
+                required 
+                placeholder="Enter your password"
+              >
+            </div>
+            <div class="col-md-6">
+              <label for="confirm_password" class="form-label">Confirm Password:</label>
+              <input 
+                type="password" 
+                class="form-control" 
+                id="confirm_password" 
+                name="confirm_password" 
+                required 
+                placeholder="Re-enter your password"
+              >
+              <div id="password_match_msg" class="form-text text-warning"></div>
+            </div>
+          </div>
+
+          <!-- Show Password Checkbox -->
+          <div class="mb-4 form-check">
+            <input 
+              type="checkbox" 
+              class="form-check-input" 
+              id="show_password"
+            >
+            <label class="form-check-label" for="show_password">Show Password</label>
+          </div>
+
+          <!-- Full Name -->
+          <div class="mb-4">
+            <label for="full_name" class="form-label">Full Name:</label>
+            <input 
+              type="text" 
+              class="form-control" 
+              id="full_name" 
+              name="full_name" 
+              required 
+              placeholder="Enter your full name"
+            >
+          </div>
+
+          <!-- DOB & Contact Number -->
+          <div class="row mb-4">
+            <div class="col-md-6 mb-4 mb-md-0">
+              <label for="dob" class="form-label">Date of Birth:</label>
+              <input 
+                type="date" 
+                class="form-control" 
+                id="dob" 
+                name="dob" 
+                required
+              >
+            </div>
+            <div class="col-md-6">
+              <label for="contact_no" class="form-label">Contact Number:</label>
+              <input 
+                type="text" 
+                class="form-control" 
+                id="contact_no" 
+                name="contact_no" 
+                required 
+                placeholder="Enter your contact number"
+              >
+            </div>
+          </div>
+
+          <!-- Admin role checkbox -->
+          <div class="mb-4 form-check">
+            <input 
+              class="form-check-input" 
+              type="checkbox" 
+              id="is_admin" 
+              name="is_admin" 
+              value="yes"
+            >
+            <label class="form-check-label" for="is_admin">I am an admin</label>
+          </div>
+
+          <!-- Submit button -->
+          <div class="mb-4">
+            <button type="submit" class="btn btn-primary w-100 py-2">Register</button>
+          </div>
+
+          <!-- Login link -->
+          <div class="text-center">
+            <span class="me-2">Already have an account?</span>
+            <a href="{{ url_for('app_routes.login') }}" class="text-info">Log in</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Show/Hide Password functionality
+  document.getElementById('show_password').addEventListener('change', function() {
+    const passField = document.getElementById('password');
+    const confField = document.getElementById('confirm_password');
+    const type = this.checked ? 'text' : 'password';
+    passField.type = type;
+    confField.type = type;
+  });
+
+  // Simple password mismatch warning
+  const passwordField = document.getElementById('password');
+  const confirmField = document.getElementById('confirm_password');
+  const matchMsg = document.getElementById('password_match_msg');
+  function checkPasswordMatch() {
+    if (passwordField.value !== confirmField.value) {
+      matchMsg.textContent = "Passwords do not match.";
+    } else {
+      matchMsg.textContent = "";
+    }
+  }
+  passwordField.addEventListener('input', checkPasswordMatch);
+  confirmField.addEventListener('input', checkPasswordMatch);
+</script>
+{% endblock %}

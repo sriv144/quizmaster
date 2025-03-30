@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+{% block title %}Attempt Details - {{ quiz.name }} - Quiz Master{% endblock %}
+
+{% block additional_css %}
+<style>
+  /* Overall container */
+  .attempt-details {
+    max-width: 1000px;
+    margin: 20px auto;
+    padding: 20px;
+    background: #f5f5f5;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .header h1 {
+    font-size: 2rem;
+    margin: 0;
+    color: #333;
+  }
+  .header p {
+    color: #666;
+    margin: 5px 0 0;
+  }
+  /* Summary cards */
+  .summary {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    text-align: center;
+    flex: 1;
+    min-width: 150px;
+  }
+  .stat-card h2 {
+    margin: 0;
+    font-size: 1.8rem;
+    color: #007bff;
+  }
+  .stat-card p {
+    margin: 5px 0 0;
+    font-size: 1rem;
+    color: #666;
+  }
+  /* Charts container */
+  .charts-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  .chart-box {
+    flex: 1;
+    min-width: 280px;
+    max-width: 32%;
+  }
+  .chart-box canvas {
+    width: 100% !important;
+    height: auto !important;
+  }
+  /* Table styling */
+  .question-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  .question-table th, .question-table td {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+    vertical-align: top;
+  }
+  .question-table th {
+    background: #f1f1f1;
+    color: #333;
+  }
+  .question-table td {
+    color: #555;
+  }
+  /* Buttons within table cells */
+  .btn-toggle {
+    background: #007bff;
+    color: #fff;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 5px;
+  }
+  /* Hidden details section */
+  .toggle-section {
+    display: none;
+    background: #eef;
+    padding: 10px;
+    margin-top: 5px;
+    border-left: 4px solid #007bff;
+  }
+  /* Instructor feedback styling */
+  .feedback-section {
+    margin-top: 30px;
+    background: #e0f7fa;
+    padding: 15px;
+    border: 2px solid #007bff;
+    border-radius: 8px;
+    color: #000;
+  }
+  .feedback-section h3 {
+    margin-top: 0;
+    color: #007bff;
+  }
+  /* Action buttons at bottom */
+  .actions {
+    text-align: center;
+    margin-top: 20px;
+  }
+  .btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background: #007bff;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 5px;
+    margin: 0 10px;
+    transition: background 0.3s;
+  }
+  .btn:hover {
+    background: #0056b3;
+  }
+  @media (max-width: 768px) {
+    .summary {
+      flex-direction: column;
+      align-items: center;
+    }
+    .stat-card {
+      width: 100%;
+      max-width: 300px;
+    }
+    .charts-container {
+      flex-direction: column;
+      align-items: center;
+    }
+    .chart-box {
+      max-width: 100%;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="attempt-details">
+  <!-- Header -->
+  <div class="header">
+    <h1>Attempt Details for {{ quiz.name }}</h1>
+    <p>Attempted on {{ score.time_stamp_of_attempt.strftime('%Y-%m-%d %H:%M') }}</p>
+  </div>
+
+  <!-- Summary Section -->
+  <div class="summary">
+    <div class="stat-card">
+      <h2>{{ score.total_scored }} / {{ quiz.total_marks }}</h2>
+      <p>Score</p>
+    </div>
+    <div class="stat-card">
+      <h2>{{ score.time_spent // 60 }} min {{ score.time_spent % 60 }} sec</h2>
+      <p>Time Spent</p>
+    </div>
+    <div class="stat-card">
+      <h2>{{ score.questions_correct }} / {{ score.total_questions }}</h2>
+      <p>Correct Answers</p>
+    </div>
+    <div class="stat-card">
+      <h2>{{ "%.1f"|format((score.total_scored / quiz.total_marks * 100) if quiz.total_marks > 0 else 0) }}%</h2>
+      <p>Percentage</p>
+    </div>
+  </div>
+
+  <!-- Charts Section -->
+  <div class="charts-container">
+    <div class="chart-box">
+      <canvas id="resultsChart"></canvas>
+    </div>
+    <div class="chart-box">
+      <canvas id="timeAnalysisChart"></canvas>
+    </div>
+    <div class="chart-box">
+      <canvas id="difficultyChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Question Analysis Table -->
+  <h2>Question Analysis</h2>
+  <table class="question-table">
+    <thead>
+      <tr>
+        <th>Question</th>
+        <th>Your Answer</th>
+        <th>Correct Answer</th>
+        <th>Result</th>
+        <th>Time Spent</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for detail in attempt_details %}
+      <tr>
+        <td>
+          {{ detail.question.question_statement }}<br>
+          <button class="btn-toggle" onclick="toggleSection('view{{ loop.index }}')">View Full Question</button>
+          <div id="view{{ loop.index }}" class="toggle-section">
+            <strong>Full Question:</strong> {{ detail.question.question_statement }}
+          </div>
+        </td>
+        <td>{{ detail.user_answer }}</td>
+        <td>
+          {# Convert the stored correct answer to the actual answer text #}
+          {% if detail.question.question_type in ['single', 'MCQ', 'True/False'] %}
+            {% set ca = detail.question.correct_option %}
+            {% if ca in ['1','2','3','4','5','6'] %}
+              {% if ca == '1' %}{{ detail.question.option1 }}
+              {% elif ca == '2' %}{{ detail.question.option2 }}
+              {% elif ca == '3' %}{{ detail.question.option3 }}
+              {% elif ca == '4' %}{{ detail.question.option4 }}
+              {% elif ca == '5' %}{{ detail.question.option5 }}
+              {% elif ca == '6' %}{{ detail.question.option6 }}
+              {% endif %}
+            {% else %}
+              {{ detail.question.correct_option }}
+            {% endif %}
+          {% elif detail.question.question_type == 'multiselect' %}
+            {% set indices = detail.question.correct_option.split(',') %}
+            {% for idx in indices %}
+              {% set idx = idx|trim %}
+              {% if idx in ['1','2','3','4','5','6'] %}
+                {% if idx == '1' %}{{ detail.question.option1 }}
+                {% elif idx == '2' %}{{ detail.question.option2 }}
+                {% elif idx == '3' %}{{ detail.question.option3 }}
+                {% elif idx == '4' %}{{ detail.question.option4 }}
+                {% elif idx == '5' %}{{ detail.question.option5 }}
+                {% elif idx == '6' %}{{ detail.question.option6 }}
+                {% endif %}
+              {% else %}
+                {{ idx }}
+              {% endif %}
+              {% if not loop.last %}, {% endif %}
+            {% endfor %}
+          {% else %}
+            {{ detail.question.correct_option }}
+          {% endif %}
+        </td>
+        <td>
+          {% if detail.is_correct %}
+            <span style="color: green;">Correct</span>
+          {% else %}
+            <span style="color: red;">Incorrect</span>
+          {% endif %}
+        </td>
+        <td>{{ detail.time_spent if detail.time_spent else 'N/A' }} sec</td>
+        <td>
+          <button class="btn-toggle" onclick="toggleSection('solution{{ loop.index }}')">Solution</button>
+          <div id="solution{{ loop.index }}" class="toggle-section">
+            {% if detail.question.explanation %}
+              <strong>Solution:</strong> {{ detail.question.explanation }}
+            {% else %}
+              No solution available.
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Instructor Feedback Section -->
+  <div class="feedback-section">
+    <h3>Instructor Feedback</h3>
+    {% if score_comments and score_comments|length > 0 %}
+      {% for comment in score_comments %}
+        <p><strong>{{ comment.admin.username if comment.admin and comment.admin.username else "Instructor" }}:</strong>
+        {{ comment.comment_text }}</p>
+      {% endfor %}
+    {% else %}
+      <p>No instructor feedback provided.</p>
+    {% endif %}
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="actions">
+    <a href="{{ url_for('app_routes.user_dashboard') }}" class="btn">Back to Dashboard</a>
+    <a href="{{ url_for('app_routes.user_scores') }}" class="btn">View All Scores</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Pie Chart for Answer Distribution
+  var ctx = document.getElementById('resultsChart').getContext('2d');
+  var correctCount = {{ attempt_details | selectattr('is_correct') | list | length }};
+  var totalQuestions = {{ attempt_details | length }};
+  var incorrectCount = totalQuestions - correctCount;
+  new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: ['Correct', 'Incorrect'],
+      datasets: [{
+        data: [correctCount, incorrectCount],
+        backgroundColor: ['#4CAF50', '#F44336'],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 14 } } },
+        title: { display: true, text: 'Answer Distribution', font: { size: 16 } }
+      }
+    }
+  });
+
+  // Bar Chart for Time Analysis per Question
+  var timeCtx = document.getElementById('timeAnalysisChart').getContext('2d');
+  var questionLabels = [
+    {% for detail in attempt_details %}
+      "Q{{ loop.index }}",
+    {% endfor %}
+  ];
+  var timeData = [
+    {% for detail in attempt_details %}
+      {{ detail.time_spent if detail.time_spent else 0 }},
+    {% endfor %}
+  ];
+  new Chart(timeCtx, {
+    type: 'bar',
+    data: {
+      labels: questionLabels,
+      datasets: [{
+        label: 'Time Spent (sec)',
+        data: timeData,
+        backgroundColor: '#2196F3'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: 'Time Analysis per Question', font: { size: 16 } }
+      },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  // Bar Chart for Difficulty Analysis vs. Correct Answers
+  var diffLabels = ["Easy", "Medium", "Hard"];
+  var correctCounts = [
+    {% for diff in diffLabels %}
+      {{ attempt_details | selectattr("question.difficulty", "equalto", diff) | selectattr("is_correct") | list | length }}{% if not loop.last %}, {% endif %}
+    {% endfor %}
+  ];
+  var incorrectCounts = [
+    {% for diff in diffLabels %}
+      {{ (attempt_details | selectattr("question.difficulty", "equalto", diff) | list | length) - (attempt_details | selectattr("question.difficulty", "equalto", diff) | selectattr("is_correct") | list | length) }}{% if not loop.last %}, {% endif %}
+    {% endfor %}
+  ];
+  var diffCtx = document.getElementById('difficultyChart').getContext('2d');
+  new Chart(diffCtx, {
+    type: 'bar',
+    data: {
+      labels: diffLabels,
+      datasets: [{
+        label: 'Correct',
+        data: correctCounts,
+        backgroundColor: '#4CAF50'
+      },{
+        label: 'Incorrect',
+        data: incorrectCounts,
+        backgroundColor: '#F44336'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' },
+        title: { display: true, text: 'Difficulty Analysis vs. Correct Answers', font: { size: 16 } }
+      },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  // Toggle function for hidden sections
+  function toggleSection(id) {
+    var elem = document.getElementById(id);
+    if (elem.style.display === "none" || elem.style.display === "") {
+      elem.style.display = "block";
+    } else {
+      elem.style.display = "none";
+    }
+  }
+</script>
+{% endblock %}

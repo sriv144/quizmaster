@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}View Subjects - Quiz Master{% endblock %}
+
+{% block additional_css %}
+<style>
+    .subjects-header {
+        margin-bottom: 40px;
+    }
+    
+    .subjects-title {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 15px;
+        background: linear-gradient(to right, #FFFFFF, #AAAAAA);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    .subjects-subtitle {
+        color: var(--gray-text);
+        font-size: 16px;
+        line-height: 1.5;
+    }
+    
+    .subjects-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 30px;
+        margin-bottom: 40px;
+    }
+    
+    .subject-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+        transition: all 0.3s;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    
+    .subject-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        border-color: rgba(88, 213, 247, 0.3);
+    }
+    
+    .subject-header {
+        background: linear-gradient(to bottom right, rgba(88, 213, 247, 0.2), transparent);
+        padding: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .subject-name {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    
+    .subject-stats {
+        color: var(--gray-text);
+        font-size: 14px;
+        display: flex;
+        gap: 15px;
+    }
+    
+    .subject-content {
+        padding: 20px;
+        flex: 1;
+    }
+    
+    .subject-description {
+        color: var(--gray-text);
+        font-size: 14px;
+        line-height: 1.5;
+        margin-bottom: 20px;
+    }
+    
+    .chapters-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .chapter-item {
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .chapter-item:last-child {
+        border-bottom: none;
+    }
+    
+    .chapter-name {
+        font-weight: 500;
+    }
+    
+    .chapter-quizzes {
+        color: var(--gray-text);
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 3px 8px;
+        border-radius: 50px;
+    }
+    
+    .subject-footer {
+        padding: 15px 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .subject-progress {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .progress-label {
+        color: var(--gray-text);
+        font-size: 12px;
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    .progress-bar {
+        height: 5px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(to right, var(--primary-accent), #27C0E5);
+        border-radius: 3px;
+    }
+    
+    .view-btn {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--light-text);
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .view-btn:hover {
+        background: rgba(88, 213, 247, 0.2);
+        color: var(--primary-accent);
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+    
+    .empty-icon {
+        font-size: 48px;
+        color: var(--gray-text);
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+    
+    .empty-message {
+        color: var(--gray-text);
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="subjects-header">
+    <h1 class="subjects-title">Browse Subjects</h1>
+    <p class="subjects-subtitle">Explore available subjects and their chapters</p>
+</div>
+
+{% if subjects %}
+<div class="subjects-grid">
+    {% for subject in subjects %}
+    <div class="subject-card">
+        <div class="subject-header">
+            <h2 class="subject-name">{{ subject.name }}</h2>
+            <div class="subject-stats">
+                <span>{{ subject.chapters|length }} Chapters</span>
+                <span>{{ subject.total_quizzes }} Quizzes</span>
+            </div>
+        </div>
+        
+        <div class="subject-content">
+            {% if subject.description %}
+            <p class="subject-description">{{ subject.description }}</p>
+            {% endif %}
+            
+            <ul class="chapters-list">
+                {% for chapter in subject.chapters %}
+                <li class="chapter-item">
+                    <span class="chapter-name">{{ chapter.name }}</span>
+                    <span class="chapter-quizzes">{{ chapter.quizzes|length }} Quizzes</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <div class="subject-footer">
+            <div class="subject-progress">
+                <div class="progress-label">
+                    <span>Progress</span>
+                    <span>{{ subject.progress|round }}%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ subject.progress }}%"></div>
+                </div>
+            </div>
+            
+            <a href="{{ url_for('app_routes.view_chapters', subject_id=subject.id) }}" class="view-btn">
+                <i class="fas fa-chevron-right"></i> View
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">📚</div>
+    <p class="empty-message">No subjects available yet.</p>
+</div>
+{% endif %}
+{% endblock %}

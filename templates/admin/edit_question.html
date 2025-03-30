@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% block title %}Edit Question - Quiz Master{% endblock %}
+
+{% block additional_css %}
+<style>
+  .page-header {
+      margin-bottom: 40px;
+  }
+  .page-title {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 15px;
+      background: linear-gradient(to right, #FFFFFF, #AAAAAA);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+  }
+  .form-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 30px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 30px;
+  }
+  .form-group {
+      margin-bottom: 20px;
+  }
+  .form-label {
+      font-weight: 600;
+      color: #fff;
+  }
+  .form-actions {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 30px;
+  }
+  .btn {
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+  }
+  .btn-cancel {
+      background-color: transparent;
+      color: var(--light-text);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .btn-cancel:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+  }
+  .btn-submit {
+      background-color: var(--primary-accent);
+      color: #000;
+      border: none;
+  }
+  .btn-submit:hover {
+      transform: translateY(-2px);
+      background-color: #6fdbfa;
+  }
+  .image-upload-box {
+      border: 2px dashed #007bff;
+      border-radius: 10px;
+      padding: 40px;
+      text-align: center;
+      transition: background-color 0.3s ease;
+      cursor: pointer;
+  }
+  .image-upload-box:hover {
+      background-color: #e9ecef;
+  }
+  .upload-icon {
+      font-size: 48px;
+      color: #007bff;
+      margin-bottom: 20px;
+  }
+  @media (max-width: 768px) {
+      .form-actions {
+          flex-direction: column;
+          gap: 15px;
+      }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Edit Question</h1>
+</div>
+
+<form method="POST" enctype="multipart/form-data" action="{{ url_for('app_routes.edit_question', question_id=question.id) }}" class="needs-validation" novalidate>
+  <div class="form-card">
+    <!-- Question Statement -->
+    <div class="form-group">
+      <label class="form-label" for="question_text">Question</label>
+      <textarea class="form-control" id="question_text" name="question_statement" required>{{ question.question_statement }}</textarea>
+    </div>
+
+    <div class="row">
+      <!-- Question Type -->
+      <div class="col-md-6 form-group">
+        <label class="form-label" for="question_type">Question Type</label>
+        <select class="form-control form-select" id="question_type" name="question_type" required>
+          <option value="single" {% if question.question_type == 'single' %}selected{% endif %}>Single Choice</option>
+          <option value="multiselect" {% if question.question_type == 'multiselect' %}selected{% endif %}>Multiple Select</option>
+          <option value="integer" {% if question.question_type == 'integer' %}selected{% endif %}>Integer</option>
+        </select>
+      </div>
+
+      <!-- Marks -->
+      <div class="col-md-6 form-group">
+        <label class="form-label" for="marks">Marks</label>
+        <input type="number" class="form-control" id="marks" name="marks" value="{{ question.marks }}" min="1" required>
+      </div>
+    </div>
+
+    <!-- Image Upload for Question -->
+    <div class="form-group">
+      <label class="form-label" for="image-upload">Question Image (Optional)</label>
+      <div class="image-upload-box" id="image-upload-box">
+          <div class="upload-icon">
+              <i class="fa fa-cloud-upload"></i>
+          </div>
+          <p>Drag and drop an image here or click to upload</p>
+          <input type="file" id="image-upload" name="image" accept="image/*" style="display: none;">
+      </div>
+      <div id="image-preview" style="margin-top: 10px;">
+          {% if question.image_path %}
+          <img src="{{ url_for('static', filename='uploads/' + question.image_path.split('/')[-1]) }}" alt="Current Image" style="max-width: 200px;">
+          {% endif %}
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div class="row">
+      <div class="col-md-6 form-group">
+        <label class="form-label" for="option1">Option 1:</label>
+        <input type="text" class="form-control" name="option1" id="option1" value="{{ question.option1 }}" required>
+      </div>
+      <div class="col-md-6 form-group">
+        <label class="form-label" for="option2">Option 2:</label>
+        <input type="text" class="form-control" name="option2" id="option2" value="{{ question.option2 }}" required>
+      </div>
+      <div class="col-md-6 form-group">
+        <label class="form-label" for="option3">Option 3:</label>
+        <input type="text" class="form-control" name="option3" id="option3" value="{{ question.option3 or '' }}">
+      </div>
+      <div class="col-md-6 form-group">
+        <label class="form-label" for="option4">Option 4:</label>
+        <input type="text" class="form-control" name="option4" id="option4" value="{{ question.option4 or '' }}">
+      </div>
+    </div>
+
+    <!-- Correct Answer Section (Single Choice) -->
+    <div id="single_correct_div" class="form-group mb-3" {% if question.question_type != 'single' %}style="display: none;"{% endif %}>
+      <label class="form-label">Correct Option:</label>
+      <select name="correct_options" class="form-select">
+        <option value="option1" {% if question.correct_option == 'option1' %}selected{% endif %}>Option 1</option>
+        <option value="option2" {% if question.correct_option == 'option2' %}selected{% endif %}>Option 2</option>
+        <option value="option3" {% if question.correct_option == 'option3' %}selected{% endif %}>Option 3</option>
+        <option value="option4" {% if question.correct_option == 'option4' %}selected{% endif %}>Option 4</option>
+      </select>
+    </div>
+
+    <!-- Correct Answer Section (Multiselect) -->
+    <div id="multiselect_correct_div" class="form-group mb-3" {% if question.question_type != 'multiselect' %}style="display: none;"{% endif %}>
+      <label class="form-label">Select Correct Options (Multiple):</label>
+      {% set correct_options = question.correct_option.split(',') if question.correct_option else [] %}
+      <div class="form-check">
+        <input type="checkbox" class="form-check-input" name="correct_options" value="option1" {% if 'option1' in correct_options %}checked{% endif %}>
+        <label class="form-check-label">Option 1</label>
+      </div>
+      <div class="form-check">
+        <input type="checkbox" class="form-check-input" name="correct_options" value="option2" {% if 'option2' in correct_options %}checked{% endif %}>
+        <label class="form-check-label">Option 2</label>
+      </div>
+      <div class="form-check">
+        <input type="checkbox" class="form-check-input" name="correct_options" value="option3" {% if 'option3' in correct_options %}checked{% endif %}>
+        <label class="form-check-label">Option 3</label>
+      </div>
+      <div class="form-check">
+        <input type="checkbox" class="form-check-input" name="correct_options" value="option4" {% if 'option4' in correct_options %}checked{% endif %}>
+        <label class="form-check-label">Option 4</label>
+      </div>
+    </div>
+
+    <!-- Correct Answer Section (Integer) -->
+    <div id="integer_correct_div" class="form-group mb-3" {% if question.question_type != 'integer' %}style="display: none;"{% endif %}>
+      <label class="form-label">Correct Answer (Numeric):</label>
+      <input type="number" class="form-control" name="correct_options" value="{{ question.correct_option if question.question_type == 'integer' else '' }}" placeholder="Enter the correct numeric answer">
+    </div>
+
+    <!-- Solution Explanation -->
+    <div class="form-group mb-3">
+      <label class="form-label">Solution Explanation (Optional):</label>
+      <textarea class="form-control" id="solution_text" name="explanation" rows="3" placeholder="Enter explanation for the correct answer (optional)">{{ question.explanation }}</textarea>
+    </div>
+
+    <!-- Solution Image Upload -->
+    <div class="form-group mb-3">
+      <label class="form-label">Solution Image (Optional):</label>
+      <div class="image-upload-box" id="solution-upload-box">
+          <div class="upload-icon">
+              <i class="fa fa-cloud-upload"></i>
+          </div>
+          <p>Drag and drop an image here or click to upload (optional)</p>
+          <input type="file" id="solution-image-upload" name="solution_image" accept="image/*" style="display: none;">
+      </div>
+      <div id="solution-image-preview" style="margin-top: 10px;">
+          {% if question.solution_image_path %}
+          <img src="{{ url_for('static', filename='uploads/' + question.solution_image_path.split('/')[-1]) }}" alt="Current Solution Image" style="max-width: 200px;">
+          {% endif %}
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Save Changes</button>
+      <a href="{{ url_for('app_routes.quiz_management') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Toggle correct answer sections based on question type selection
+  document.addEventListener("DOMContentLoaded", function() {
+      const qTypeSelect = document.getElementById('question_type');
+      const singleDiv = document.getElementById('single_correct_div');
+      const multiDiv = document.getElementById('multiselect_correct_div');
+      const integerDiv = document.getElementById('integer_correct_div');
+      
+      function updateQuestionControls() {
+          const qType = qTypeSelect.value;
+          if (qType === "single") {
+              singleDiv.style.display = "block";
+              multiDiv.style.display = "none";
+              integerDiv.style.display = "none";
+          } else if (qType === "multiselect") {
+              singleDiv.style.display = "none";
+              multiDiv.style.display = "block";
+              integerDiv.style.display = "none";
+          } else if (qType === "integer") {
+              singleDiv.style.display = "none";
+              multiDiv.style.display = "none";
+              integerDiv.style.display = "block";
+          }
+      }
+      qTypeSelect.addEventListener("change", updateQuestionControls);
+      updateQuestionControls();
+  });
+
+  // Image upload for question image
+  document.addEventListener('DOMContentLoaded', function() {
+      const uploadBox = document.getElementById('image-upload-box');
+      const fileInput = document.getElementById('image');
+      const preview = document.getElementById('image-preview');
+      uploadBox.addEventListener('click', () => fileInput.click());
+      uploadBox.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          uploadBox.style.backgroundColor = '#e9e9e9';
+      });
+      uploadBox.addEventListener('dragleave', () => {
+          uploadBox.style.backgroundColor = '';
+      });
+      uploadBox.addEventListener('drop', (e) => {
+          e.preventDefault();
+          uploadBox.style.backgroundColor = '';
+          handleFile(e.dataTransfer.files[0]);
+      });
+      fileInput.addEventListener('change', (e) => {
+          handleFile(e.target.files[0]);
+      });
+      function handleFile(file) {
+          if (file && file.type.startsWith('image/')) {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                  preview.innerHTML = `<img src="${e.target.result}" alt="Uploaded Image" style="max-width: 100%;">`;
+              };
+              reader.readAsDataURL(file);
+          } else {
+              alert('Please upload a valid image file.');
+          }
+      }
+  });
+
+  // Image upload for solution image
+  document.addEventListener('DOMContentLoaded', function() {
+      const solUploadBox = document.getElementById('solution-upload-box');
+      const solFileInput = document.getElementById('solution-image-upload');
+      const solPreview = document.getElementById('solution-image-preview');
+      solUploadBox.addEventListener('click', () => solFileInput.click());
+      solUploadBox.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          solUploadBox.style.backgroundColor = '#e9e9e9';
+      });
+      solUploadBox.addEventListener('dragleave', () => {
+          solUploadBox.style.backgroundColor = '';
+      });
+      solUploadBox.addEventListener('drop', (e) => {
+          e.preventDefault();
+          solUploadBox.style.backgroundColor = '';
+          handleSolFile(e.dataTransfer.files[0]);
+      });
+      solFileInput.addEventListener('change', (e) => {
+          handleSolFile(e.target.files[0]);
+      });
+      function handleSolFile(file) {
+          if (file && file.type.startsWith('image/')) {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                  solPreview.innerHTML = `<img src="${e.target.result}" alt="Solution Image" style="max-width: 100%;">`;
+              };
+              reader.readAsDataURL(file);
+          } else {
+              alert('Please upload a valid image file.');
+          }
+      }
+  });
+</script>
+{% endblock %}

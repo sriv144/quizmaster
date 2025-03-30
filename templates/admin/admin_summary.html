@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+{% block title %}Admin Performance Analytics{% endblock %}
+
+{% block additional_css %}
+<style>
+  /* Container and Animation */
+  .dashboard-container {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 20px;
+      animation: fadeInUp 0.7s ease forwards;
+  }
+  @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+  }
+  /* Header and Toggle Switch */
+  .header-toggle {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+  }
+  .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 34px;
+  }
+  .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+  }
+  .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+  }
+  .slider:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+  }
+  input:checked + .slider {
+      background-color: #007bff;
+  }
+  input:checked + .slider:before {
+      transform: translateX(26px);
+  }
+  /* Filter Bar */
+  .filter-bar {
+      margin-bottom: 20px;
+  }
+  .filter-bar .card {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      margin-bottom: 20px;
+  }
+  /* Flashcards Grid for Graphs View */
+  .flashcard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
+      margin-bottom: 30px;
+  }
+  .flashcard {
+      background: linear-gradient(135deg, #1e1e1e, #2a2a2a);
+      border-top: 4px solid #66e6a8;
+      border-radius: 8px;
+      padding: 15px;
+      text-align: center;
+      color: #fff;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      transition: transform 0.3s ease;
+  }
+  .flashcard:hover {
+      transform: translateY(-5px);
+  }
+  .flashcard .display-4 {
+      font-size: 1.8rem;
+      font-weight: bold;
+      margin: 0;
+  }
+  .flashcard p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #ccc;
+  }
+  /* Chart Containers */
+  .chart-container {
+      background: #1f1f1f;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .chart-title {
+      font-size: 1.5rem;
+      color: #fff;
+      text-align: center;
+      margin-bottom: 15px;
+  }
+  .chart-wrapper {
+      position: relative;
+      height: 350px;
+  }
+  @media (max-width: 768px) {
+      .chart-wrapper { height: 300px; }
+  }
+  /* Users Table */
+  .users-table {
+      width: 100%;
+  }
+  .users-table th, .users-table td {
+      padding: 12px;
+      text-align: left;
+  }
+  .users-table th {
+      background: #292929;
+      color: #ccc;
+  }
+  .users-table td {
+      border-bottom: 1px solid #444;
+      color: #fff;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+  <!-- Header and Toggle Switch -->
+  <div class="header-toggle">
+    <div>
+      <h1 class="display-5">Performance Analytics Dashboard</h1>
+      <p class="text-muted">Gain insights into student performance and quiz metrics</p>
+    </div>
+    <div class="d-inline-flex align-items-center">
+      <span class="me-2">Graphs</span>
+      <label class="toggle-switch me-2">
+        <input type="checkbox" id="viewToggle">
+        <span class="slider"></span>
+      </label>
+      <span>User Details</span>
+    </div>
+  </div>
+  
+  <!-- Graphs View Section (Default) -->
+  <div id="graphsView" class="display-section">
+    <!-- Flashcards Grid -->
+    <div class="flashcard-grid mb-4">
+      <div class="flashcard">
+        <h3 class="display-4">{{ avg_score|round(1) }}%</h3>
+        <p>Average Score</p>
+      </div>
+      <div class="flashcard">
+        <h3 class="display-4">{{ avg_time|round(1) }} min</h3>
+        <p>Average Time</p>
+      </div>
+      <div class="flashcard">
+        <h3 class="display-4">{{ quiz_count }}</h3>
+        <p>Total Quizzes</p>
+      </div>
+      <div class="flashcard">
+        <h3 class="display-4">{{ student_count }}</h3>
+        <p>Total Students</p>
+      </div>
+    </div>
+    
+    <!-- Graph Filter Bar (Optional: Customize as needed) -->
+    <div class="filter-bar">
+      <div class="card">
+        <div class="card-header bg-light">
+          <h5 class="mb-0">Graph Filters</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-4">
+              <label for="graphSubjectFilter" class="form-label">Subject</label>
+              <select class="form-control" id="graphSubjectFilter" name="graph_subject_filter">
+                <option value="">All Subjects</option>
+                {% for subject in subjects %}
+                  <option value="{{ subject.id }}">{{ subject.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <!-- Additional graph filters can be added here -->
+          </div>
+          <div class="row mt-3">
+            <div class="col text-end">
+              <button type="button" class="btn btn-primary" id="applyGraphFilters">Apply Graph Filters</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Charts Section -->
+    <div class="row mb-4">
+      <div class="col-md-6 mb-4">
+        <div class="chart-container">
+          <h2 class="chart-title">User Performance</h2>
+          <div class="chart-wrapper">
+            <canvas id="userScoreChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 mb-4">
+        <div class="chart-container">
+          <h2 class="chart-title">Subject Performance</h2>
+          <div class="chart-wrapper">
+            <canvas id="subjectScoreChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6 mb-4">
+        <div class="chart-container">
+          <h2 class="chart-title">Quiz Completion Rates</h2>
+          <div class="chart-wrapper">
+            <canvas id="completionChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 mb-4">
+        <div class="chart-container">
+          <h2 class="chart-title">Difficulty Analysis</h2>
+          <div class="chart-wrapper">
+            <canvas id="difficultyChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- User Details View Section -->
+  <div id="usersView" class="display-section">
+    <!-- Filter Bar for Users -->
+    <div class="card mb-4">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">Filter Quiz Attempts</h5>
+      </div>
+      <div class="card-body">
+        <form id="userFilterForm" method="GET">
+          <div class="row">
+            <div class="col-md-3">
+              <label for="usernameFilter" class="form-label">Username</label>
+              <select class="form-control" id="usernameFilter" name="username_filter">
+                <option value="">All Users</option>
+                {% for user in users %}
+                  <option value="{{ user.id }}" {% if username_filter == user.id|string %}selected{% endif %}>{{ user.username }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label for="quizFilter" class="form-label">Quiz Title</label>
+              <select class="form-control" id="quizFilter" name="quiz_filter">
+                <option value="">All Quizzes</option>
+                {% for quiz in quizzes %}
+                  <option value="{{ quiz.id }}" {% if quiz_filter == quiz.id|string %}selected{% endif %}>{{ quiz.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label for="subjectFilter" class="form-label">Subject</label>
+              <select class="form-control" id="subjectFilter" name="subject_filter">
+                <option value="">All Subjects</option>
+                {% for subject in subjects %}
+                  <option value="{{ subject.id }}" {% if subject_filter == subject.id|string %}selected{% endif %}>{{ subject.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label for="dateFilter" class="form-label">Date Range</label>
+              <select class="form-control" id="dateFilter" name="date_filter">
+                <option value="">All Time</option>
+                <option value="today" {% if date_filter == "today" %}selected{% endif %}>Today</option>
+                <option value="week" {% if date_filter == "week" %}selected{% endif %}>This Week</option>
+                <option value="month" {% if date_filter == "month" %}selected{% endif %}>This Month</option>
+              </select>
+            </div>
+          </div>
+          <div class="row mt-3">
+            <div class="col text-end">
+              <button type="submit" class="btn btn-primary">Apply Filters</button>
+              <a href="{{ url_for('app_routes.admin_summary') }}" class="btn btn-secondary">Reset</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+    <!-- Detailed User Attempts Table -->
+    <div class="card">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">Quiz Attempts by Users</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table users-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Quiz Title</th>
+                <th>Subject</th>
+                <th>Score (%)</th>
+                <th>Time Taken (min)</th>
+                <th>Attempted On</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for attempt in quiz_attempts %}
+              <tr>
+                <td>{{ attempt.username }}</td>
+                <td>{{ attempt.quiz_name }}</td>
+                <td>{{ attempt.subject_name }}</td>
+                <td>{{ "%.1f"|format(attempt.total_scored) }}%</td>
+                <td>{{ attempt.time_spent / 60 | round(1) }}</td>
+                <td>{{ attempt.time_stamp_of_attempt.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                <td>
+                  <a href="{{ url_for('app_routes.view_users') }}?search={{ attempt.username|urlencode }}" class="btn btn-sm btn-primary">Feedback</a>
+                </td>
+              </tr>
+              {% endfor %}
+              {% if quiz_attempts|length == 0 %}
+              <tr>
+                <td colspan="7" class="text-center">No quiz attempts found for the selected filters.</td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const viewToggle = document.getElementById('viewToggle');
+    const graphsView = document.getElementById('graphsView');
+    const usersView = document.getElementById('usersView');
+    
+    // Default: show Graphs view, hide Users view
+    graphsView.style.display = 'block';
+    usersView.style.display = 'none';
+    
+    viewToggle.addEventListener('change', function() {
+      if (this.checked) {
+        graphsView.style.display = 'none';
+        usersView.style.display = 'block';
+      } else {
+        graphsView.style.display = 'block';
+        usersView.style.display = 'none';
+      }
+    });
+    
+    // Helper function to initialize charts
+    function initializeChart(canvasId, type, data, options) {
+      const canvas = document.getElementById(canvasId);
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        new Chart(ctx, { type: type, data: data, options: options });
+      }
+    }
+    
+    // User Score Chart
+    initializeChart('userScoreChart', 'bar', {
+      labels: {{ chart_labels|tojson }},
+      datasets: [{
+        label: 'Average Score (%)',
+        data: {{ chart_data|tojson }},
+        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+        borderWidth: 1
+      }]
+    }, {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, max: 100, title: { display: true, text: 'Score (%)' } }
+      }
+    });
+    
+    // Subject Score Chart
+    initializeChart('subjectScoreChart', 'bar', {
+      labels: {{ chart_subject_labels|tojson }},
+      datasets: [{
+        label: 'Average Score (%)',
+        data: {{ chart_subject_data|tojson }},
+        backgroundColor: 'rgba(255, 159, 64, 0.5)',
+        borderWidth: 1
+      }]
+    }, {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, max: 100, title: { display: true, text: 'Score (%)' } }
+      }
+    });
+    
+    // Completion Chart (Pie)
+    initializeChart('completionChart', 'pie', {
+      labels: {{ chart_completion_labels|tojson }},
+      datasets: [{
+        data: {{ chart_completion_data|tojson }},
+        backgroundColor: ['#10B981', '#FFC107', '#EF4444']
+      }]
+    }, {
+      responsive: true,
+      maintainAspectRatio: false
+    });
+    
+    // Difficulty Analysis Chart
+    initializeChart('difficultyChart', 'bar', {
+      labels: {{ difficulty_order|tojson }},
+      datasets: [
+        {
+          label: 'Attempted',
+          data: {{ attempted_list|tojson }},
+          backgroundColor: 'rgba(255, 99, 132, 0.5)',
+          borderWidth: 1
+        },
+        {
+          label: 'Correct',
+          data: {{ correct_list|tojson }},
+          backgroundColor: 'rgba(75, 192, 192, 0.5)',
+          borderWidth: 1
+        }
+      ]
+    }, {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: 'No. of Questions' } }
+      }
+    });
+});
+</script>
+{% endblock %}

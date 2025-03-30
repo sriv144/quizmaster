@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+{% block title %}Quiz Results - Quiz Master{% endblock %}
+
+{% block additional_css %}
+<style>
+    /* Global Styles */
+    body {
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        background: #121212;
+        color: #e0e0e0;
+    }
+    
+    /* Header Styles */
+    .results-header {
+        text-align: center;
+        margin: 40px 0;
+    }
+    .results-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+    .results-subtitle {
+        font-size: 1.2rem;
+        color: #b0b0b0;
+    }
+    
+    /* Stat Cards */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 30px;
+        margin: 40px 0;
+    }
+    .stat-card {
+        background: #1e1e1e;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+        text-align: center;
+        transition: transform 0.3s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #4fc3f7;
+    }
+    .stat-label {
+        font-size: 1rem;
+        color: #a0a0a0;
+    }
+    
+    /* Comparison Card */
+    .comparison-card {
+        display: flex;
+        justify-content: space-around;
+        background: #1e1e1e;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        margin: 40px 0;
+    }
+    .comparison-value {
+        font-size: 1.8rem;
+        font-weight: 600;
+    }
+    .above-average {
+        color: #28a745;
+    }
+    .below-average {
+        color: #dc3545;
+    }
+    .at-average {
+        color: #ffc107;
+    }
+    .comparison-text {
+        font-size: 1rem;
+        color: #cccccc;
+    }
+    
+    /* Questions Card and Table */
+    .questions-card {
+        background: #1e1e1e;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+    .card-header {
+        margin-bottom: 25px;
+    }
+    .card-title {
+        font-size: 1.8rem;
+        color: #ffffff;
+    }
+    .table-responsive {
+        overflow-x: auto;
+    }
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .data-table th {
+        background: #2a2a2a;
+        padding: 15px;
+        cursor: pointer;
+        text-align: left;
+        font-weight: 600;
+        color: #ffffff;
+    }
+    .data-table td {
+        padding: 15px;
+        border-bottom: 1px solid #333333;
+        color: #cccccc;
+    }
+    .bg-correct {
+        background: #0f3d0f;
+    }
+    .bg-incorrect {
+        background: #3d0f0f;
+    }
+    .result-icon {
+        font-size: 1.2rem;
+    }
+    .correct-icon {
+        color: #28a745;
+    }
+    .incorrect-icon {
+        color: #dc3545;
+    }
+    
+    /* Action Buttons */
+    .action-buttons {
+        margin-top: 30px;
+        text-align: center;
+    }
+    .btn {
+        padding: 12px 25px;
+        margin: 0 10px;
+        border-radius: 5px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: background 0.3s ease, color 0.3s ease;
+    }
+    .btn-outline {
+        border: 2px solid #4fc3f7;
+        color: #4fc3f7;
+    }
+    .btn-outline:hover {
+        background: #4fc3f7;
+        color: #121212;
+    }
+    .btn-primary {
+        background: #4fc3f7;
+        color: #121212;
+    }
+    .btn-primary:hover {
+        background: #0095c1;
+    }
+</style>
+
+
+{% endblock %}
+
+{% block content %}
+<div class="results-header">
+    <h1 class="results-title">Quiz Results</h1>
+    <p class="results-subtitle">Check how you performed on this quiz</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ score_percentage|round(1) }}%</div>
+        <div class="stat-label">Your Score</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ score.total_scored }} / {{ quiz.total_marks }}</div>
+        <div class="stat-label">Points Scored</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ (score.time_spent / 60)|round(1) }} min</div>
+        <div class="stat-label">Time Spent</div>
+    </div>
+</div>
+
+<!-- Donut Chart for Answer Distribution -->
+<div class="chart-container" style="position: relative; height: 300px; width: 100%; max-width: 400px; margin: 0 auto 40px;">
+    <canvas id="resultsChart"></canvas>
+</div>
+
+<div class="comparison-card">
+    <div>
+        <div class="comparison-value">{{ avg_percentage|round(1) }}%</div>
+        <div class="comparison-text">Class Average</div>
+    </div>
+    
+    <div>
+        {% if score_percentage > avg_percentage %}
+            <div class="comparison-value above-average">
+                {{ (score_percentage - avg_percentage)|round(1) }}% above average
+            </div>
+            <div class="comparison-text">Great job! You're performing above the average</div>
+        {% elif score_percentage < avg_percentage %}
+            <div class="comparison-value below-average">
+                {{ (avg_percentage - score_percentage)|round(1) }}% below average
+            </div>
+            <div class="comparison-text">Keep practicing to improve your score</div>
+        {% else %}
+            <div class="comparison-value at-average">
+                At class average
+            </div>
+            <div class="comparison-text">You're right on track with others</div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="questions-card">
+    <div class="card-header">
+        <h2 class="card-title">Question Breakdown</h2>
+    </div>
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th id="sort-number">#</th>
+                    <th id="sort-question">Question <i class="fas fa-sort"></i></th>
+                    <th id="sort-user-answer">Your Answer <i class="fas fa-sort"></i></th>
+                    <th id="sort-correct-answer">Correct Answer <i class="fas fa-sort"></i></th>
+                    <th id="sort-result">Result <i class="fas fa-sort"></i></th>
+                    <th id="sort-marks">Marks <i class="fas fa-sort"></i></th>
+                    <th id="sort-time">Time <i class="fas fa-sort"></i></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for attempt in attempts %}
+                <tr class="{% if attempt.is_correct %}bg-correct{% else %}bg-incorrect{% endif %}">
+                    <td>{{ loop.index }}</td>
+                    <td>{{ attempt.question.question_statement }}</td>
+                    <td>{{ attempt.user_answer }}</td>
+                    <td>{{ attempt.question.correct_option }}</td>
+                    <td>
+                        {% if attempt.is_correct %}
+                            <span class="result-icon correct-icon">✓</span>
+                        {% else %}
+                            <span class="result-icon incorrect-icon">✕</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ attempt.marks_awarded }}/{{ attempt.question.marks }}</td>
+                    <td>{{ attempt.time_spent if attempt.time_spent else 'N/A' }} sec</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="action-buttons">
+    <a href="{{ url_for('app_routes.user_dashboard') }}" class="btn btn-outline">
+        <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
+    </a>
+    <a href="{{ url_for('app_routes.user_summary') }}" class="btn btn-primary">
+        <i class="fas fa-chart-line mr-2"></i> View Performance Summary
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+<script>
+    // Donut Chart for Answer Distribution
+    var correctCount = {{ attempts|selectattr('is_correct')|list|length }};
+    var totalQuestions = {{ attempts|length }};
+    var ctx = document.getElementById('resultsChart').getContext('2d');
+    var resultsChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Correct', 'Incorrect'],
+            datasets: [{
+                data: [correctCount, totalQuestions - correctCount],
+                backgroundColor: ['#10B981', '#EF4444'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                title: { display: true, text: 'Answer Distribution' }
+            }
+        }
+    });
+
+    // Table Sorting
+    var currentSortColumn = -1;
+    var currentSortOrder = 1;
+    var headers = document.querySelectorAll('.data-table th');
+    headers.forEach(function(header, index) {
+        header.addEventListener('click', function() {
+            sortTable(index);
+        });
+    });
+    function sortTable(columnIndex) {
+        if (currentSortColumn === columnIndex) {
+            currentSortOrder = -currentSortOrder;
+        } else {
+            currentSortOrder = 1;
+        }
+        currentSortColumn = columnIndex;
+        var table = document.querySelector('.data-table');
+        var rows = Array.from(table.querySelectorAll('tbody tr'));
+        var isNumeric = [true, false, false, false, false, true, true];
+        rows.sort(function(a, b) {
+            var aValue = a.cells[columnIndex].textContent.trim();
+            var bValue = b.cells[columnIndex].textContent.trim();
+            if (isNumeric[columnIndex]) {
+                aValue = parseFloat(aValue.split('/')[0]) || 0;
+                bValue = parseFloat(bValue.split('/')[0]) || 0;
+                return (aValue - bValue) * currentSortOrder;
+            } else {
+                return aValue.localeCompare(bValue) * currentSortOrder;
+            }
+        });
+        var tbody = table.querySelector('tbody');
+        tbody.innerHTML = '';
+        rows.forEach(function(row) {
+            tbody.appendChild(row);
+        });
+        headers.forEach(function(h, i) {
+            var icon = h.querySelector('i');
+            if (i === columnIndex) {
+                icon.className = currentSortOrder === 1 ? 'fas fa-sort-up' : 'fas fa-sort-down';
+            } else {
+                icon.className = 'fas fa-sort';
+            }
+        });
+    }
+</script>
+{% endblock %}

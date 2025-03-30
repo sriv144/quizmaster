@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+{% block title %}Quiz Management - Quiz Master{% endblock %}
+
+{% block additional_css %}
+<style>
+    /* Header Styles */
+    .management-header {
+        margin-bottom: 40px;
+    }
+    .management-title {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 15px;
+        background: linear-gradient(to right, #FFFFFF, #AAAAAA);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .management-subtitle {
+        color: var(--gray-text);
+        font-size: 16px;
+        line-height: 1.5;
+    }
+
+    /* Action Container */
+    .action-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    .search-container {
+        margin-bottom: 30px;
+    }
+    .search-box {
+        width: 100%;
+        padding: 12px 20px;
+        background: rgba(30, 30, 30, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        color: white;
+        backdrop-filter: blur(10px);
+        font-size: 16px;
+        transition: all 0.3s;
+    }
+    .search-box:focus {
+        border-color: var(--primary-accent);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(88, 213, 247, 0.1);
+    }
+    .action-btn {
+        background-color: var(--primary-accent);
+        color: #000;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 14px rgba(88, 213, 247, 0.25);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(88, 213, 247, 0.35);
+    }
+
+    /* Subjects Grid */
+    .subjects-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+    .data-card {
+        background: rgba(30, 30, 30, 0.6);
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .card-header {
+        padding: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .card-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #fff;
+        margin: 0;
+    }
+
+    /* Chapter and Quiz Tables */
+    .chapter-section {
+        padding: 0 20px 20px;
+    }
+    .chapter-section h4 {
+        color: white;
+        margin: 10px 0;
+    }
+    .quiz-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .quiz-table th {
+        background-color: rgba(0, 0, 0, 0.2);
+        color: var(--gray-text);
+        font-weight: 600;
+        text-align: left;
+        padding: 15px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .quiz-table td {
+        padding: 15px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .quiz-actions {
+        display: flex;
+        gap: 8px;
+    }
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.05);
+        color: white;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .btn-edit {
+        background: rgba(88, 213, 247, 0.1);
+    }
+    .btn-edit:hover {
+        background: rgba(88, 213, 247, 0.2);
+        color: var(--primary-accent);
+    }
+    .btn-delete {
+        background: rgba(244, 67, 54, 0.1);
+    }
+    .btn-delete:hover {
+        background: rgba(244, 67, 54, 0.2);
+        color: #f44336;
+    }
+
+    /* Dropdown: Hide by default */
+    .dropdown-menu {
+        display: none;
+    }
+    .dropdown-menu.show {
+        display: block;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--gray-text);
+    }
+    .empty-icon {
+        font-size: 48px;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 768px) {
+        .action-container {
+            flex-direction: column;
+            gap: 15px;
+        }
+        .search-box {
+            width: 100%;
+        }
+        .subjects-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="management-header">
+    <h1 class="management-title">Quiz Management</h1>
+    <p class="management-subtitle">Create, edit, and schedule quizzes for your students</p>
+</div>
+
+<div class="action-container">
+    <div class="search-container">
+        <input id="quizSearch" class="search-box" type="search" placeholder="Search by quiz name">
+    </div>
+    
+    <a href="{{ url_for('app_routes.add_quiz') }}" class="action-btn">
+        <i class="fas fa-plus"></i> Create New Quiz
+    </a>
+</div>
+
+{% if subjects %}
+<div class="subjects-grid">
+    {% for subject in subjects %}
+    <div class="data-card" data-subject-name="{{ subject.name | lower }}">
+        <div class="card-header">
+            <h2 class="card-title">{{ subject.name }}</h2>
+        </div>
+        <div class="card-content">
+            {% for chapter in subject.chapters %}
+            <div class="chapter-section">
+                <h4>{{ chapter.name }}</h4>
+                <table class="quiz-table">
+                    <thead>
+                        <tr>
+                            <th>Quiz Name</th>
+                            <th>Number of Questions</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for quiz in chapter.quizzes %}
+                        <tr class="quiz-row" data-quiz-name="{{ quiz.name.lower() }}">
+                            <td>{{ quiz.name }}</td>
+                            <td>{{ quiz.questions|length }}</td>
+                            <td>
+                                <div class="quiz-actions">
+                                    <a href="{{ url_for('app_routes.add_question', quiz_id=quiz.id) }}" class="btn-icon" title="Add Question">
+                                        <i class="fas fa-plus"></i>
+                                    </a>
+                                    <a href="{{ url_for('app_routes.edit_quiz', quiz_id=quiz.id) }}" class="btn-icon btn-edit" title="Edit Quiz">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <!-- Dropdown for questions -->
+                                    <div class="dropdown d-inline-block">
+                                        <button class="btn-icon dropdown-toggle question-toggle" type="button" id="questionsDropdown{{ quiz.id }}" 
+                                                title="Toggle Questions (Press '?' or Click)">
+                                            <i class="fas fa-question"></i>
+                                        </button>
+                                        <ul class="dropdown-menu" aria-labelledby="questionsDropdown{{ quiz.id }}">
+                                            {% for question in quiz.questions %}
+                                            <li class="dropdown-item d-flex justify-content-between align-items-center">
+                                                <span>{{ question.question_statement|truncate(50) }}</span>
+                                                <div>
+                                                    <a href="{{ url_for('app_routes.edit_question', question_id=question.id) }}" 
+                                                       class="btn-icon btn-edit" title="Edit Question">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <form method="POST" action="{{ url_for('app_routes.delete_question', question_id=question.id) }}" style="display:inline;">
+                                                        <button type="submit" class="btn-icon btn-delete" title="Delete Question" 
+                                                                onclick="return confirm('Are you sure you want to delete this question?');">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </li>
+                                            {% else %}
+                                            <li><a class="dropdown-item disabled" href="#">No questions</a></li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    <form method="POST" action="{{ url_for('app_routes.delete_quiz', quiz_id=quiz.id) }}" style="display:inline;">
+                                        <button type="submit" class="btn-icon btn-delete" title="Delete Quiz" 
+                                                onclick="return confirm('Are you sure you want to delete this quiz?');">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3">No quizzes in this chapter</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="padding: 20px;">No chapters in this subject</p>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">📋</div>
+    <p>No subjects available. Please add a subject first.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Live search functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('quizSearch');
+    const subjectCards = document.querySelectorAll('.data-card'); // subject cards container
+
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.trim().toLowerCase();
+        let overallMatchFound = false;
+
+        subjectCards.forEach(card => {
+            // Get subject name from data attribute or fallback to text content of card title
+            const subjectName = card.getAttribute('data-subject-name') || (card.querySelector('.card-title') ? card.querySelector('.card-title').textContent.toLowerCase() : '');
+            const subjectMatch = subjectName.includes(searchTerm);
+            let chapterMatches = 0;
+
+            // Loop through each chapter section within this subject card
+            const chapterSections = card.querySelectorAll('.chapter-section');
+            chapterSections.forEach(section => {
+                // Get chapter name from the <h4> tag within the chapter section
+                const chapterHeader = section.querySelector('h4');
+                const chapterName = chapterHeader ? chapterHeader.textContent.toLowerCase() : '';
+                const chapterMatch = chapterName.includes(searchTerm);
+                let quizMatch = false;
+
+                // Loop through each quiz row in this chapter section
+                const quizRows = section.querySelectorAll('.quiz-row');
+                quizRows.forEach(row => {
+                    const quizName = row.getAttribute('data-quiz-name');
+                    if (quizName && quizName.includes(searchTerm)) {
+                        row.style.display = '';
+                        quizMatch = true;
+                    } else {
+                        // Hide if a search term is present; otherwise, show all
+                        row.style.display = searchTerm ? 'none' : '';
+                    }
+                });
+
+                // If the chapter name matches or any quiz in this chapter matches, show the section
+                if (chapterMatch || quizMatch || !searchTerm) {
+                    section.style.display = '';
+                    chapterMatches++;
+                } else {
+                    section.style.display = 'none';
+                }
+            });
+
+            // Show the subject card if the subject name or any chapter matches (or if no search term is entered)
+            if (subjectMatch || chapterMatches > 0 || !searchTerm) {
+                card.style.display = '';
+                overallMatchFound = true;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        // Handle "no results" message
+        const container = document.getElementById('subjects-container');
+        let noResultsMsg = document.querySelector('.no-results-message');
+        if (!overallMatchFound && searchTerm !== '') {
+            if (!noResultsMsg) {
+                noResultsMsg = document.createElement('div');
+                noResultsMsg.className = 'empty-state no-results-message';
+                noResultsMsg.innerHTML = '<div style="font-size: 48px; margin-bottom: 20px;">🔍</div><p>No subjects, chapters, or quizzes found matching your search.</p>';
+                container.appendChild(noResultsMsg);
+            }
+        } else if (noResultsMsg) {
+            noResultsMsg.remove();
+        }
+    });
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('quizSearch');
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.trim().toLowerCase();
+        const quizRows = document.querySelectorAll('.quiz-row');
+
+        // Filter quiz rows
+        quizRows.forEach(row => {
+            const quizName = row.getAttribute('data-quiz-name');
+            row.classList.toggle('hidden', !quizName.includes(searchTerm));
+        });
+
+        // Update chapter visibility
+        document.querySelectorAll('.chapter-section').forEach(section => {
+            const visibleQuizzes = section.querySelectorAll('.quiz-row:not(.hidden)');
+            section.classList.toggle('hidden', visibleQuizzes.length === 0);
+        });
+
+        // Update subject visibility
+        document.querySelectorAll('.data-card').forEach(card => {
+            const visibleChapters = card.querySelectorAll('.chapter-section:not(.hidden)');
+            card.classList.toggle('hidden', visibleChapters.length === 0);
+        });
+    });
+});
+
+function toggleDropdown(dropdownMenu) {
+        dropdownMenu.classList.toggle('show');
+    }
+
+    // Attach click listeners to each question mark button
+    document.querySelectorAll('.question-toggle').forEach(function(button) {
+        button.addEventListener('click', function(e) {
+            // Prevent any default dropdown behavior
+            e.preventDefault();
+            const dropdown = this.closest('.dropdown');
+            if (dropdown) {
+                const menu = dropdown.querySelector('.dropdown-menu');
+                if (menu) {
+                    toggleDropdown(menu);
+                }
+            }
+        });
+    });
+
+    // Listen for the "?" key to toggle all question dropdown menus
+    document.addEventListener('keydown', function(e) {
+        // Check if "?" is pressed (key may be on Shift+/ depending on keyboard)
+        if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+            document.querySelectorAll('.dropdown-menu').forEach(function(menu) {
+                toggleDropdown(menu);
+            });
+        }
+    });
+</script>
+{% endblock %}

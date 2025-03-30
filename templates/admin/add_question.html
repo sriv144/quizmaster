@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+
+{% block title %}Add Question - Quiz Master{% endblock %}
+
+{% block additional_css %}
+<style>
+    .page-header {
+        margin-bottom: 40px;
+    }
+    
+    .page-title {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 15px;
+        background: linear-gradient(to right, #FFFFFF, #AAAAAA);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    .form-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 30px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        margin-bottom: 30px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #fff;
+    }
+    
+    .form-actions {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 30px;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-cancel {
+        background-color: transparent;
+        color: var(--light-text);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-cancel:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-submit {
+        background-color: var(--primary-accent);
+        color: #000;
+        border: none;
+    }
+
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        background-color: #6fdbfa;
+    }
+
+    .image-upload-box {
+  border: 2px dashed #007bff;
+  border-radius: 10px;
+  padding: 40px;
+  text-align: center;
+  transition: background-color 0.3s ease;
+  cursor: pointer;
+}
+
+.image-upload-box:hover {
+  background-color: #e9ecef;
+}
+
+.upload-icon {
+  font-size: 48px;
+  color: #007bff;
+  margin-bottom: 20px;
+}
+
+
+    @media (max-width: 768px) {
+        .form-actions {
+            flex-direction: column;
+            gap: 15px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Add New Question</h1>
+</div>
+
+<form method="POST" action="{{ url_for('app_routes.add_question', quiz_id=quiz_id) }}" enctype="multipart/form-data">
+    <div class="form-card">
+        <div class="form-group">
+            <label class="form-label" for="question_text">Question</label>
+            <textarea class="form-control" id="question_text" name="question_text" required></textarea>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="question_type">Question Type</label>
+            <select class="form-control form-select" id="question_type" name="question_type" required>
+                <option value="MCQ">Multiple Choice</option>
+                <option value="True/False">True / False</option>
+                <option value="integer">Integer</option>
+                <option value="multiselect">Multi-Select</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="difficulty">Difficulty Level</label>
+            <select class="form-control form-select" id="difficulty" name="difficulty" required>
+                <option value="Easy">Easy</option>
+                <option value="Medium">Medium</option>
+                <option value="Hard">Hard</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="image-upload">Question Image</label>
+            <div class="image-upload-box">
+                <div class="upload-icon">
+                    <i class="fa fa-cloud-upload"></i>
+                </div>
+                <p>Drag and drop an image here or click to upload</p>
+                <input type="file" id="image-upload" name="image" accept="image/*" style="display: none;">
+            </div>
+            <div id="image-preview"></div>
+        </div>
+       
+        <div class="form-group">
+            <label class="form-label" for="num_options">Number of Options</label>
+            <select class="form-control form-select" id="num_options" name="num_options">
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4" selected>4</option>
+                <option value="5">5</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="marks">Marks</label>
+            <input type="number" class="form-control" id="marks" name="marks" min="1" required>
+        </div>
+        
+        <div id="options-container">
+            <!-- Options will be dynamically added here -->
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Solution (Optional)</label>
+            <textarea class="form-control" id="solution_text" name="solution_text" placeholder="Enter solution explanation (optional)"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Solution Image (Optional)</label>
+            <div class="image-upload-box" id="solution-upload-box">
+                <div class="upload-icon">
+                    <i class="fa fa-cloud-upload"></i>
+                </div>
+                <p>Drag and drop an image here or click to upload (optional)</p>
+                <input type="file" id="solution-image-upload" name="solution_image" accept="image/*" style="display: none;">
+            </div>
+            <div id="solution-image-preview"></div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('app_routes.quiz_management') }}" class="btn btn-cancel">Cancel</a>
+            <div>
+                <button type="submit" name="action" value="save_next" class="btn btn-submit">Save & Next</button>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      const questionTypeSelect = document.getElementById('question_type');
+      const numOptionsSelect = document.getElementById('num_options');
+      const optionsContainer = document.getElementById('options-container');
+
+      function generateOptions(numOptions) {
+          optionsContainer.innerHTML = '';
+
+          if (questionTypeSelect.value === 'True/False') {
+              optionsContainer.innerHTML = `
+                  <div class="form-group">
+                      <label class="form-label">Select Correct Answer</label>
+                      <div class="form-check">
+                          <input class="form-check-input" type="radio" name="correct_options" value="True" required>
+                          <label class="form-check-label">True</label>
+                      </div>
+                      <div class="form-check">
+                          <input class="form-check-input" type="radio" name="correct_options" value="False">
+                          <label class="form-check-label">False</label>
+                      </div>
+                  </div>
+              `;
+          } else if (questionTypeSelect.value === 'integer') {
+              optionsContainer.innerHTML = `
+                  <div class="form-group">
+                      <label class="form-label">Correct Answer (Integer)</label>
+                      <input type="number" class="form-control" id="correct_answer" name="correct_answer" required>
+                  </div>
+              `;
+          } else {
+            for (let i = 1; i <= numOptions; i++) {
+    // Determine input type and whether to add the "required" attribute
+    let inputType = questionTypeSelect.value === 'multiselect' ? 'checkbox' : 'radio';
+    let requiredAttr = inputType === 'radio' ? 'required' : '';
+    optionsContainer.innerHTML += `
+        <div class="form-group">
+            <label class="form-label" for="option${i}">Option ${i}</label>
+            <input type="text" class="form-control" id="option${i}" name="option${i}" required>
+            <input type="${inputType}"
+                   name="correct_options"
+                   value="option${i}" ${requiredAttr}>
+            <label>Correct</label>
+        </div>
+    `;
+}
+
+          }
+      }
+
+      // Initial render
+      generateOptions(parseInt(numOptionsSelect.value));
+
+      // Update options dynamically
+      numOptionsSelect.addEventListener('change', function() {
+          generateOptions(parseInt(this.value));
+      });
+
+      questionTypeSelect.addEventListener('change', function() {
+          if (this.value === 'True/False' || this.value === 'integer') {
+              numOptionsSelect.value = "2";
+              numOptionsSelect.setAttribute("disabled", "true");
+          } else {
+              numOptionsSelect.removeAttribute("disabled");
+          }
+          generateOptions(parseInt(numOptionsSelect.value));
+      });
+  });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const uploadBox = document.querySelector('.image-upload-box');
+    const fileInput = document.getElementById('image-upload');
+    const preview = document.getElementById('image-preview');
+
+    uploadBox.addEventListener('click', () => fileInput.click());
+
+    uploadBox.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadBox.style.backgroundColor = '#e9e9e9';
+    });
+
+    uploadBox.addEventListener('dragleave', () => {
+        uploadBox.style.backgroundColor = '';
+    });
+
+    uploadBox.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadBox.style.backgroundColor = '';
+        handleFile(e.dataTransfer.files[0]);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        handleFile(e.target.files[0]);
+    });
+
+    function handleFile(file) {
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.innerHTML = `<img src="${e.target.result}" alt="Uploaded Image" style="max-width: 100%;">`;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            alert('Please upload a valid image file.');
+        }
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const solutionUploadBox = document.getElementById('solution-upload-box');
+    const solutionFileInput = document.getElementById('solution-image-upload');
+    const solutionPreview = document.getElementById('solution-image-preview');
+
+    solutionUploadBox.addEventListener('click', () => solutionFileInput.click());
+
+    solutionUploadBox.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        solutionUploadBox.style.backgroundColor = '#e9e9e9';
+    });
+
+    solutionUploadBox.addEventListener('dragleave', () => {
+        solutionUploadBox.style.backgroundColor = '';
+    });
+
+    solutionUploadBox.addEventListener('drop', (e) => {
+        e.preventDefault();
+        solutionUploadBox.style.backgroundColor = '';
+        handleSolutionFile(e.dataTransfer.files[0]);
+    });
+
+    solutionFileInput.addEventListener('change', (e) => {
+        handleSolutionFile(e.target.files[0]);
+    });
+
+    function handleSolutionFile(file) {
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                solutionPreview.innerHTML = `<img src="${e.target.result}" alt="Solution Image" style="max-width: 100%;">`;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            alert('Please upload a valid image file.');
+        }
+    }
+});
+
+
+</script>
+{% endblock %}

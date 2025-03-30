@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz Result{% endblock %}
+
+{% block additional_css %}
+<style>
+    .result-header {
+        margin-bottom: 40px;
+    }
+    
+    .result-title {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 15px;
+        background: linear-gradient(to right, #FFFFFF, #AAAAAA);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    .result-subtitle {
+        color: var(--gray-text);
+        font-size: 16px;
+        line-height: 1.5;
+    }
+    
+    .result-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 30px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        margin-bottom: 30px;
+    }
+    
+    .breadcrumb {
+        display: flex;
+        gap: 10px;
+        font-size: 14px;
+        margin-bottom: 30px;
+        align-items: center;
+    }
+    
+    .breadcrumb a {
+        color: var(--gray-text);
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+    
+    .breadcrumb a:hover {
+        color: var(--primary-accent);
+    }
+    
+    .breadcrumb-divider {
+        color: var(--gray-text);
+    }
+    
+    .breadcrumb-current {
+        color: var(--primary-accent);
+        font-weight: 500;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .btn-primary {
+        background-color: var(--primary-accent);
+        color: #000;
+        border: none;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        background-color: #6fdbfa;
+    }
+    
+    .btn-outline {
+        background-color: transparent;
+        color: var(--light-text);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .btn-outline:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    @media (max-width: 768px) {
+        .action-buttons {
+            flex-direction: column;
+        }
+        
+        .btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="{{ url_for('app_routes.user_dashboard') }}">Home</a>
+    <span class="breadcrumb-divider">/</span>
+    <a href="{{ url_for('app_routes.user_scores') }}">Scores</a>
+    <span class="breadcrumb-divider">/</span>
+    <a href="{{ url_for('app_routes.user_summary') }}">Summary</a>
+    <span class="breadcrumb-divider">/</span>
+    <span class="breadcrumb-current">Quiz Result</span>
+</div>
+
+<div class="result-header">
+    <h1 class="result-title">Quiz Result: {{ quiz.name }}</h1>
+    <p class="result-subtitle">Review your answers and performance</p>
+</div>
+
+<div class="result-card">
+    <div id="quiz-answers-container">
+        <!-- Placeholder for how the user answered each question, correct answers, etc. -->
+        <p>Detailed quiz results will appear here, including your answers, correct solutions, and explanations.</p>
+    </div>
+    
+    <div class="action-buttons">
+        <a href="{{ url_for('app_routes.user_dashboard') }}" class="btn btn-outline">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
+        </a>
+        <a href="{{ url_for('app_routes.user_scores') }}" class="btn btn-primary">
+            <i class="fas fa-list mr-2"></i> View All Scores
+        </a>
+    </div>
+</div>
+{% endblock %}

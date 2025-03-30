@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Add Feedback Comment{% endblock %}
+
+{% block additional_css %}
+<style>
+    .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    h1 {
+        font-size: 28px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    .form-label {
+        font-weight: bold;
+    }
+    .btn {
+        margin-top: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Add Feedback</h1>
+    <p>Provide your feedback for the quiz attempt (Score ID: {{ score.id }})</p>
+    
+    <form action="{{ url_for('app_routes.add_score_comment', score_id=score.id) }}" method="post">
+        <div class="mb-3">
+            <label for="comment_text" class="form-label">Feedback Comment</label>
+            <textarea class="form-control" id="comment_text" name="comment_text" rows="4" 
+                      placeholder="Enter your feedback here..." required></textarea>
+        </div>
+        
+        <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="is_private" name="is_private" value="1">
+            <label class="form-check-label" for="is_private">Private Comment</label>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Submit Feedback</button>
+        <a href="{{ url_for('app_routes.admin_summary') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

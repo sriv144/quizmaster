@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Your Quiz Scores{% endblock %}
+
+{% block additional_css %}
+<style>
+    .scores-header {
+        margin-bottom: 40px;
+    }
+    
+    .scores-title {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 15px;
+        background: linear-gradient(to right, #FFFFFF, #AAAAAA);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    .scores-subtitle {
+        color: var(--gray-text);
+        font-size: 16px;
+        line-height: 1.5;
+    }
+    
+    .data-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        margin-bottom: 30px;
+    }
+    
+    .card-header {
+        padding: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .card-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #fff;
+    }
+    
+    .action-btn {
+        background-color: var(--primary-accent);
+        color: #000;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-2px);
+        background-color: #6fdbfa;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+    
+    .empty-icon {
+        font-size: 48px;
+        color: var(--gray-text);
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+    
+    .empty-message {
+        color: var(--gray-text);
+        margin-bottom: 20px;
+    }
+    
+    .percentage-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 10px;
+        border-radius: 50px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .percentage-high {
+        background-color: rgba(16, 185, 129, 0.2);
+        color: #10B981;
+    }
+    
+    .percentage-medium {
+        background-color: rgba(245, 158, 11, 0.2);
+        color: #F59E0B;
+    }
+    
+    .percentage-low {
+        background-color: rgba(239, 68, 68, 0.2);
+        color: #EF4444;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="scores-header">
+    <h1 class="scores-title">Your Quiz Scores</h1>
+    <p class="scores-subtitle">Track your performance across all quizzes</p>
+</div>
+
+<div class="data-card">
+    <div class="card-header">
+        <h2 class="card-title">Quiz History</h2>
+    </div>
+    
+    {% if scores %}
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Quiz Name</th>
+                    <th>Score</th>
+                    <th>Percentage</th>
+                    <th>Time Spent</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for score in scores %}
+                <tr>
+                    <td>{{ score.quiz_name }}</td>
+                    <td>{{ score.score }}/{{ score.max_score }}</td>
+                    <td>
+                        {% set percentage = score.percentage|round(1) %}
+                        <span class="percentage-badge 
+                            {% if percentage >= 80 %}percentage-high
+                            {% elif percentage >= 60 %}percentage-medium
+                            {% else %}percentage-low{% endif %}">
+                            {{ percentage }}%
+                        </span>
+                    </td>
+                    <td>{{ score.time_spent|round(1) }} min</td>
+                    <td>{{ score.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        <a href="{{ url_for('app_routes.view_attempt_details', quiz_id=score.quiz_id) }}" class="action-btn">
+                            <i class="fas fa-eye"></i> View Details
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <p class="empty-message">You haven't taken any quizzes yet.</p>
+        <a href="{{ url_for('app_routes.user_dashboard') }}" class="action-btn">
+            <i class="fas fa-list"></i> Go to Available Quizzes
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
