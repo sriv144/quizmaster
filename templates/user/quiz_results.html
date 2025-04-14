@@ -234,21 +234,21 @@
                 </tr>
             </thead>
             <tbody>
-                {% for attempt in attempts %}
-                <tr class="{% if attempt.is_correct %}bg-correct{% else %}bg-incorrect{% endif %}">
+                {% for item in attempts %}
+                <tr class="{% if item.attempt.is_correct %}bg-correct{% else %}bg-incorrect{% endif %}">
                     <td>{{ loop.index }}</td>
-                    <td>{{ attempt.question.question_statement }}</td>
-                    <td>{{ attempt.user_answer }}</td>
-                    <td>{{ attempt.question.correct_option }}</td>
+                    <td>{{ item.question.question_statement }}</td>
+                    <td>{{ item.attempt.user_answer }}</td>
+                    <td>{{ item.correct_answer }}</td>
                     <td>
-                        {% if attempt.is_correct %}
+                        {% if item.attempt.is_correct %}
                             <span class="result-icon correct-icon">✓</span>
                         {% else %}
                             <span class="result-icon incorrect-icon">✕</span>
                         {% endif %}
                     </td>
-                    <td>{{ attempt.marks_awarded }}/{{ attempt.question.marks }}</td>
-                    <td>{{ attempt.time_spent if attempt.time_spent else 'N/A' }} sec</td>
+                    <td>{{ item.attempt.marks_awarded }}/{{ item.question.marks }}</td>
+                    <td>{{ item.attempt.time_spent if item.attempt.time_spent else 'N/A' }} sec</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -271,7 +271,7 @@
 <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
 <script>
     // Donut Chart for Answer Distribution
-    var correctCount = {{ attempts|selectattr('is_correct')|list|length }};
+    var correctCount = {{ attempts|selectattr('attempt.is_correct')|list|length }};
     var totalQuestions = {{ attempts|length }};
     var ctx = document.getElementById('resultsChart').getContext('2d');
     var resultsChart = new Chart(ctx, {
@@ -337,6 +337,6 @@
                 icon.className = 'fas fa-sort';
             }
         });
-    }
+    }z
 </script>
 {% endblock %}

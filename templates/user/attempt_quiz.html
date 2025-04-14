@@ -385,42 +385,46 @@
                     {% for question in questions %}
                     <div class="question-container" id="question-{{ loop.index }}">
                         <h3 class="question-number">Question {{ loop.index }}</h3>
-                        {% if question.question_statement %}
-                        <p class="question-statement">{{ question.question_statement | safe }}</p>
-                        {% else %}
-                        <p class="question-statement">Question statement not available.</p>
-                        {% endif %}
+                        <p class="question-statement">
+                            {{ question.question_statement | safe if question.question_statement else "Question statement not available." }}
+                        </p>
                         {% if question.image_path %}
                         <img src="{{ url_for('static', filename=question.image_path) }}" alt="Question Image" class="question-image">
                         {% endif %}
 
                         {% if question.question_type == "integer" %}
-                        <!-- For integer questions, use a number input -->
                         <div class="form-group">
                             <label class="form-label">Your Answer</label>
                             <input type="number" class="form-control" name="answers[{{ question.id }}]" required>
                         </div>
                         {% elif question.question_type == "multiselect" %}
-                        <!-- For multiselect questions, use checkboxes -->
                         <div class="options-container">
                             {% for option in [question.option1, question.option2, question.option3, question.option4, question.option5] if option %}
                             <div class="option-item">
-                                <input type="checkbox" id="q{{ question.id }}_{{ loop.index }}" 
-                                    name="question_{{ question.id }}[]" 
-                                    value="{{ option }}"
-                                    {% if option in user_previous_answers.get(question.id, []) %} checked {% endif %}
-                                    onchange="updateSkipButton()">
+                                <input type="checkbox" id="q{{ question.id }}_{{ loop.index }}"
+                                       name="answers[{{ question.id }}][]"
+                                       value="{{ option }}"
+                                       onchange="updateSkipButton()">
                                 <label for="q{{ question.id }}_{{ loop.index }}">{{ option | safe }}</label>
                             </div>
                             {% endfor %}
                         </div>
-
-                        {% else %}
-                        <!-- For single-choice questions, use radio buttons -->
+                        {% elif question.question_type == "True/False" %}
+                        <div class="options-container">
+                            <div class="option-item">
+                                <input type="radio" id="q{{ question.id }}_true" name="answers[{{ question.id }}]" value="True" onchange="updateSkipButton()" required>
+                                <label for="q{{ question.id }}_true">True</label>
+                            </div>
+                            <div class="option-item">
+                                <input type="radio" id="q{{ question.id }}_false" name="answers[{{ question.id }}]" value="False" onchange="updateSkipButton()" required>
+                                <label for="q{{ question.id }}_false">False</label>
+                            </div>
+                        </div>
+                        {% elif question.question_type == "single" %}
                         <div class="options-container">
                             {% for option in [question.option1, question.option2, question.option3, question.option4] if option %}
                             <div class="option-item">
-                                <input type="radio" id="q{{ question.id }}_{{ loop.index }}" name="answers[{{ question.id }}]" value="{{ option }}" onchange="updateSkipButton()">
+                                <input type="radio" id="q{{ question.id }}_{{ loop.index }}" name="answers[{{ question.id }}]" value="{{ option }}" onchange="updateSkipButton()" required>
                                 <label for="q{{ question.id }}_{{ loop.index }}">{{ option | safe }}</label>
                             </div>
                             {% endfor %}
@@ -431,6 +435,7 @@
                 {% else %}
                     <p>No questions available for this quiz.</p>
                 {% endif %}
+
                 <div class="btn-group">
                     <button type="button" class="btn btn-previous" id="prev-btn" onclick="navigate(-1)">
                         <i class="fas fa-arrow-left"></i> Previous

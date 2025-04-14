@@ -119,7 +119,7 @@
         <div class="form-group">
             <label class="form-label" for="question_type">Question Type</label>
             <select class="form-control form-select" id="question_type" name="question_type" required>
-                <option value="MCQ">Multiple Choice</option>
+                <option value="single">Multiple Choice</option>
                 <option value="True/False">True / False</option>
                 <option value="integer">Integer</option>
                 <option value="multiselect">Multi-Select</option>
@@ -193,152 +193,86 @@
 
 {% block scripts %}
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-      const questionTypeSelect = document.getElementById('question_type');
-      const numOptionsSelect = document.getElementById('num_options');
-      const optionsContainer = document.getElementById('options-container');
-
-      function generateOptions(numOptions) {
-          optionsContainer.innerHTML = '';
-
-          if (questionTypeSelect.value === 'True/False') {
-              optionsContainer.innerHTML = `
-                  <div class="form-group">
-                      <label class="form-label">Select Correct Answer</label>
-                      <div class="form-check">
-                          <input class="form-check-input" type="radio" name="correct_options" value="True" required>
-                          <label class="form-check-label">True</label>
-                      </div>
-                      <div class="form-check">
-                          <input class="form-check-input" type="radio" name="correct_options" value="False">
-                          <label class="form-check-label">False</label>
-                      </div>
-                  </div>
-              `;
-          } else if (questionTypeSelect.value === 'integer') {
+    document.addEventListener('DOMContentLoaded', function () {
+        const questionTypeSelect = document.getElementById('question_type');
+        const numOptionsInput = document.getElementById('num_options');
+        const optionsContainer = document.getElementById('options-container');
+    
+        function generateOptions() {
+            const type = questionTypeSelect.value;
+            const num = parseInt(numOptionsInput.value || '0');
+            optionsContainer.innerHTML = '';
+    
+            if (type === 'True/False') {
+                optionsContainer.innerHTML = `
+                    <div class="form-group">
+                        <label class="form-label">Select Correct Answer</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="correct_option" value="True" required>
+                            <label class="form-check-label">True</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="correct_option" value="False">
+                            <label class="form-check-label">False</label>
+                        </div>
+                    </div>
+                `;
+                numOptionsInput.disabled = true;
+            }
+    
+            else if (questionTypeSelect.value === 'integer') {
               optionsContainer.innerHTML = `
                   <div class="form-group">
                       <label class="form-label">Correct Answer (Integer)</label>
                       <input type="number" class="form-control" id="correct_answer" name="correct_answer" required>
                   </div>
               `;
-          } else {
-            for (let i = 1; i <= numOptions; i++) {
-    // Determine input type and whether to add the "required" attribute
-    let inputType = questionTypeSelect.value === 'multiselect' ? 'checkbox' : 'radio';
-    let requiredAttr = inputType === 'radio' ? 'required' : '';
-    optionsContainer.innerHTML += `
-        <div class="form-group">
-            <label class="form-label" for="option${i}">Option ${i}</label>
-            <input type="text" class="form-control" id="option${i}" name="option${i}" required>
-            <input type="${inputType}"
-                   name="correct_options"
-                   value="option${i}" ${requiredAttr}>
-            <label>Correct</label>
-        </div>
-    `;
-}
-
-          }
-      }
-
-      // Initial render
-      generateOptions(parseInt(numOptionsSelect.value));
-
-      // Update options dynamically
-      numOptionsSelect.addEventListener('change', function() {
-          generateOptions(parseInt(this.value));
-      });
-
-      questionTypeSelect.addEventListener('change', function() {
-          if (this.value === 'True/False' || this.value === 'integer') {
-              numOptionsSelect.value = "2";
-              numOptionsSelect.setAttribute("disabled", "true");
-          } else {
-              numOptionsSelect.removeAttribute("disabled");
-          }
-          generateOptions(parseInt(numOptionsSelect.value));
-      });
-  });
-
-  document.addEventListener('DOMContentLoaded', function() {
-    const uploadBox = document.querySelector('.image-upload-box');
-    const fileInput = document.getElementById('image-upload');
-    const preview = document.getElementById('image-preview');
-
-    uploadBox.addEventListener('click', () => fileInput.click());
-
-    uploadBox.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadBox.style.backgroundColor = '#e9e9e9';
-    });
-
-    uploadBox.addEventListener('dragleave', () => {
-        uploadBox.style.backgroundColor = '';
-    });
-
-    uploadBox.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadBox.style.backgroundColor = '';
-        handleFile(e.dataTransfer.files[0]);
-    });
-
-    fileInput.addEventListener('change', (e) => {
-        handleFile(e.target.files[0]);
-    });
-
-    function handleFile(file) {
-        if (file && file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                preview.innerHTML = `<img src="${e.target.result}" alt="Uploaded Image" style="max-width: 100%;">`;
-            };
-            reader.readAsDataURL(file);
-        } else {
-            alert('Please upload a valid image file.');
+            }
+            else if (type === 'single') {
+                if (num >= 2) {
+                    for (let i = 1; i <= num; i++) {
+                        optionsContainer.innerHTML += `
+                            <div class="form-group">
+                                <label class="form-label" for="option${i}">Option ${i}</label>
+                                <input type="text" class="form-control" name="option${i}" required>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="correct_option" value="option${i}" required>
+                                    <label class="form-check-label">Mark as correct</label>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    numOptionsInput.disabled = false;
+                }
+            }
+    
+            else if (type === 'multiselect') {
+                if (num >= 2) {
+                    for (let i = 1; i <= num; i++) {
+                        optionsContainer.innerHTML += `
+                            <div class="form-group">
+                                <label class="form-label" for="option${i}">Option ${i}</label>
+                                <input type="text" class="form-control" name="option${i}" required>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="correct_options" value="option${i}">
+                                    <label class="form-check-label">Mark as correct</label>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    numOptionsInput.disabled = false;
+                }
+            }
+    
+            else {
+                optionsContainer.innerHTML = '';
+                numOptionsInput.disabled = true;
+            }
         }
-    }
-});
-
-document.addEventListener('DOMContentLoaded', function() {
-    const solutionUploadBox = document.getElementById('solution-upload-box');
-    const solutionFileInput = document.getElementById('solution-image-upload');
-    const solutionPreview = document.getElementById('solution-image-preview');
-
-    solutionUploadBox.addEventListener('click', () => solutionFileInput.click());
-
-    solutionUploadBox.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        solutionUploadBox.style.backgroundColor = '#e9e9e9';
+    
+        questionTypeSelect.addEventListener('change', generateOptions);
+        numOptionsInput.addEventListener('input', generateOptions);
     });
-
-    solutionUploadBox.addEventListener('dragleave', () => {
-        solutionUploadBox.style.backgroundColor = '';
-    });
-
-    solutionUploadBox.addEventListener('drop', (e) => {
-        e.preventDefault();
-        solutionUploadBox.style.backgroundColor = '';
-        handleSolutionFile(e.dataTransfer.files[0]);
-    });
-
-    solutionFileInput.addEventListener('change', (e) => {
-        handleSolutionFile(e.target.files[0]);
-    });
-
-    function handleSolutionFile(file) {
-        if (file && file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                solutionPreview.innerHTML = `<img src="${e.target.result}" alt="Solution Image" style="max-width: 100%;">`;
-            };
-            reader.readAsDataURL(file);
-        } else {
-            alert('Please upload a valid image file.');
-        }
-    }
-});
-
-
-</script>
+    </script>
+     
 {% endblock %}

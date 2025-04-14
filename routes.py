@@ -1185,6 +1185,7 @@ def attempt_quiz(quiz_id):
             flash("You have already taken this quiz.", "info")
             return redirect(url_for("app_routes.view_attempt_details", quiz_id=quiz_id))
         
+        # Remove joinedload since Question model doesn't have an "options" attribute.
         questions = Question.query.filter_by(quiz_id=quiz_id).all()
         
         if not questions:
@@ -1198,7 +1199,6 @@ def attempt_quiz(quiz_id):
     except Exception as e:
         flash(f"Error loading quiz: {str(e)}", "danger")
         return redirect(url_for("app_routes.user_dashboard"))
-    
 
 def search_quizzes():
     if session.get("role") != "user":
@@ -1238,31 +1238,6 @@ def search_quizzes():
 
 @app_routes.route("/user/submit_quiz/<int:quiz_id>", methods=["POST"])
 def submit_quiz(quiz_id):
-    def get_option_text(question, token):
-        """
-        Given a token (which may be a digit or 'optionX'), return the corresponding option text.
-        """
-        token = token.strip()
-        if token.isdigit() or (token.lower().startswith("option") and token[6:].isdigit()):
-            if token.lower().startswith("option"):
-                index = token[6:]
-            else:
-                index = token
-            if index == "1":
-                return question.option1 or ""
-            elif index == "2":
-                return question.option2 or ""
-            elif index == "3":
-                return question.option3 or ""
-            elif index == "4":
-                return question.option4 or ""
-            elif index == "5":
-                return question.option5 or ""
-            else:
-                return token
-        else:
-            return token
-
     if session.get("role") != "user":
         flash("Access denied! Users only.", "danger")
         return redirect(url_for("app_routes.login"))
@@ -1289,7 +1264,6 @@ def submit_quiz(quiz_id):
                     times[qid] = 0
         
         total_time_from_form = int(request.form.get("total_time", 0))
-        
         total_score = 0
         questions_correct = 0
         questions_answered = 0
@@ -1303,104 +1277,144 @@ def submit_quiz(quiz_id):
             time_stamp_of_attempt=now,
             completion_status="Completed"
         )
+        
         db.session.add(new_score)
         db.session.commit()  # Generate new_score.id
         
         questions = Question.query.filter_by(quiz_id=quiz_id).all()
+        
         for question in questions:
             qid_str = str(question.id)
             is_correct = False
             marks_awarded = 0
             
-            if question.question_type.lower() == "multiselect":
+            # Get question type and normalize it for comparison
+            question_type = question.question_type.lower() if question.question_type else ""
+            
+            # Handle true/false questions specifically
+            if question_type in ["true_false", "truefalse"]:
+                user_answer = request.form.get(f"answers[{question.id}]")
+                if user_answer is not None:
+                    questions_answered += 1
+                    computed_total_time += times.get(qid_str, 0)
+                    
+                    # Normalize both answers for consistent comparison
+                    user_answer_norm = str(user_answer).lower().strip()
+                    correct_answer = question.correct_option
+                    
+                    if correct_answer is not None:
+                        correct_answer_norm = str(correct_answer).lower().strip()
+                        
+                        # Handle various boolean representations
+                        true_values = ['true', 't', 'yes', 'y', '1']
+                        false_values = ['false', 'f', 'no', 'n', '0']
+                        
+                        # Compare normalized values
+                        if (user_answer_norm in true_values and correct_answer_norm in true_values) or \
+                           (user_answer_norm in false_values and correct_answer_norm in false_values):
+                            is_correct = True
+                            marks_awarded = question.marks
+                            
+                        current_app.logger.info(
+                            f"[TrueFalse] QID {question.id}: user_answer='{user_answer_norm}', correct_answer='{correct_answer_norm}', is_correct={is_correct}"
+                        )
+            
+            # Handle multiselect questions
+            elif question_type == "multiselect":
                 selected_options = request.form.getlist(f"answers[{question.id}]")
                 if selected_options:
                     questions_answered += 1
                     computed_total_time += times.get(qid_str, 0)
                     
-                    # Debug: show what tokens are stored
-                    stored_tokens = [token.strip() for token in question.correct_option.split(",") if token.strip()]
-                    # Convert each token into its option text
-                    correct_options = set(get_option_text(question, token).strip().lower() for token in stored_tokens)
-                    # Also normalize the user's selected answers
-                    selected_set = set(opt.strip().lower() for opt in selected_options)
-                    
-                    current_app.logger.info(
-                        f"[Multiselect] QID {question.id}: stored_tokens={stored_tokens}, correct_options={correct_options}, selected_set={selected_set}"
-                    )
-                    
-                    if correct_options == selected_set:
-                        is_correct = True
-                        marks_awarded = question.marks
-                    else:
-                        # Award partial marks: proportional to the number of correctly selected options.
-                        if correct_options:
+                    # Safely process correct options
+                    correct_option_str = question.correct_option
+                    if correct_option_str is not None:
+                        stored_tokens = [token.strip() for token in correct_option_str.split(",") if token and token.strip()]
+                        correct_options = set(token.lower() for token in stored_tokens)
+                        selected_set = set(opt.strip().lower() for opt in selected_options if opt)
+                        
+                        current_app.logger.info(
+                            f"[Multiselect] QID {question.id}: correct_options={correct_options}, selected_set={selected_set}"
+                        )
+                        
+                        if correct_options == selected_set:
+                            is_correct = True
+                            marks_awarded = question.marks
+                        elif correct_options:
+                            # Partial marks logic
                             common = len(correct_options & selected_set)
                             marks_awarded = question.marks * (common / len(correct_options))
+            
+            # Handle all other question types (single choice, integer, etc.)
             else:
-                # For integer and single-choice (MCQ) questions
-                user_answer = request.form.get(f"answers[{question.id}]", "").strip()
-                if user_answer:
+                user_answer = request.form.get(f"answers[{question.id}]")
+                if user_answer is not None:
                     questions_answered += 1
                     computed_total_time += times.get(qid_str, 0)
                     
-                    # Determine correct answer text (same logic as before)
-                    correct_text = ""
-                    stored_value = question.correct_option.strip()
-                    if stored_value.isdigit() or (stored_value.lower().startswith("option") and stored_value[6:].isdigit()):
-                        if stored_value.lower().startswith("option"):
-                            index = stored_value[6:]
-                        else:
-                            index = stored_value
-                        if index == "1":
-                            correct_text = question.option1 or ""
-                        elif index == "2":
-                            correct_text = question.option2 or ""
-                        elif index == "3":
-                            correct_text = question.option3 or ""
-                        elif index == "4":
-                            correct_text = question.option4 or ""
-                        elif index == "5":
-                            correct_text = question.option5 or ""
-                        else:
-                            correct_text = stored_value
-                    else:
-                        correct_text = stored_value
+                    # For integer questions
+                    if question_type == "integer":
+                        try:
+                            if int(user_answer.strip()) == int(question.correct_option.strip()):
+                                is_correct = True
+                                marks_awarded = question.marks
+                        except (ValueError, TypeError, AttributeError):
+                            pass
                     
-                    current_app.logger.info(
-                        f"[MCQ] QID {question.id}: user_answer='{user_answer}', correct_text='{correct_text}'"
-                    )
-                    
-                    if user_answer.lower() == correct_text.strip().lower():
-                        is_correct = True
-                        marks_awarded = question.marks
+                    # For single choice questions
                     else:
-                        is_correct = False
-                        marks_awarded = 0
+                        # Normalize both answers
+                        user_answer_norm = user_answer.strip().lower() if user_answer else ""
+                        correct_answer = question.correct_option
+                        
+                        if correct_answer is not None:
+                            correct_answer_norm = correct_answer.strip().lower()
+                            
+                            # Direct comparison
+                            if user_answer_norm == correct_answer_norm:
+                                is_correct = True
+                                marks_awarded = question.marks
+                            else:
+                                # Try to match with option text if correct_option is a number or option reference
+                                if correct_answer.isdigit() or correct_answer.lower().startswith("option"):
+                                    option_index = correct_answer.lower().replace("option", "") if correct_answer.lower().startswith("option") else correct_answer
+                                    if option_index.isdigit():
+                                        option_index = int(option_index)
+                                        if 1 <= option_index <= 6:
+                                            option_attr = f"option{option_index}"
+                                            if hasattr(question, option_attr):
+                                                option_text = getattr(question, option_attr)
+                                                if option_text and user_answer_norm == option_text.lower().strip():
+                                                    is_correct = True
+                                                    marks_awarded = question.marks
             
             total_score += marks_awarded
             if is_correct:
                 questions_correct += 1
             
+            # Format the user answer for storage
+            stored_user_answer = ""
+            if question_type == "multiselect" and 'selected_options' in locals() and selected_options:
+                stored_user_answer = ", ".join(selected_options)
+            else:
+                stored_user_answer = user_answer if user_answer is not None else ""
+            
             # Record each question attempt
-            if questions_answered > 0:
-                attempt = QuestionAttempt(
-                    score_id=new_score.id,
-                    question_id=question.id,
-                    user_id=user_id,
-                    user_answer=(
-                        ", ".join(request.form.getlist(f"answers[{question.id}]"))
-                        if question.question_type.lower() == "multiselect"
-                        else request.form.get(f"answers[{question.id}]", "").strip()
-                    ),
-                    is_correct=is_correct,
-                    marks_awarded=marks_awarded,
-                    time_spent=times.get(qid_str, 0)
-                )
-                db.session.add(attempt)
+            attempt = QuestionAttempt(
+                score_id=new_score.id,
+                question_id=question.id,
+                user_id=user_id,
+                user_answer=stored_user_answer,
+                is_correct=is_correct,
+                marks_awarded=marks_awarded,
+                time_spent=times.get(qid_str, 0)
+            )
+            
+            db.session.add(attempt)
         
         final_total_time = total_time_from_form if total_time_from_form > 0 else computed_total_time
         
+        # Update the score record with final values
         new_score.total_scored = total_score
         new_score.questions_correct = questions_correct
         new_score.questions_answered = questions_answered
@@ -1411,11 +1425,11 @@ def submit_quiz(quiz_id):
         
         flash(f"Quiz submitted successfully! You scored {total_score:.1f} points.", "success")
         return redirect(url_for("app_routes.quiz_results", score_id=new_score.id))
+        
     except Exception as e:
         db.session.rollback()
         flash(f"Error submitting quiz: {str(e)}", "danger")
         return redirect(url_for("app_routes.user_dashboard"))
-
 
 
 @app_routes.route("/user/quiz_results/<int:score_id>")
@@ -1427,29 +1441,69 @@ def quiz_results(score_id):
     try:
         score = Score.query.get_or_404(score_id)
         
-        # Verify the score belongs to the logged-in user
         if score.user_id != session.get("user_id"):
             flash("Access denied! You can only view your own results.", "danger")
             return redirect(url_for("app_routes.user_dashboard"))
         
         quiz = Quiz.query.get(score.quiz_id)
-        
-        # Calculate performance metrics
         questions = Question.query.filter_by(quiz_id=quiz.id).all()
         total_marks = sum(q.marks for q in questions)
         score_percentage = (score.total_scored / total_marks * 100) if total_marks > 0 else 0
         
-        # Get class average for comparison
         avg_score = db.session.query(func.avg(Score.total_scored)).filter(
             Score.quiz_id == quiz.id,
             Score.user_id != score.user_id
         ).scalar() or 0
         avg_percentage = (avg_score / total_marks * 100) if total_marks > 0 else 0
         
-        # Get question attempts
         attempts = QuestionAttempt.query.filter_by(score_id=score.id).all()
+        
+        def get_correct_answer_text(question):
+            correct_option = (question.correct_option or "").strip()
+            if not correct_option:
+                return ""
+            if question.question_type.lower() == "multiselect":
+                tokens = [token.strip() for token in correct_option.split(",") if token.strip()]
+                options = [
+                    (question.option1 or "").strip(),
+                    (question.option2 or "").strip(),
+                    (question.option3 or "").strip(),
+                    (question.option4 or "").strip(),
+                    (question.option5 or "").strip()
+                ]
+                result = []
+                for token in tokens:
+                    if token.isdigit() or (token.lower().startswith("option") and token[6:].isdigit()):
+                        index = int(token[6:] if token.lower().startswith("option") else token) - 1
+                        if 0 <= index < len(options):
+                            result.append(options[index])
+                    else:
+                        result.append(token)
+                return ", ".join(result)
+            else:
+                if correct_option.isdigit() or (correct_option.lower().startswith("option") and correct_option[6:].isdigit()):
+                    index = int(correct_option[6:] if correct_option.lower().startswith("option") else correct_option) - 1
+                    options = [
+                        (question.option1 or "").strip(),
+                        (question.option2 or "").strip(),
+                        (question.option3 or "").strip(),
+                        (question.option4 or "").strip(),
+                        (question.option5 or "").strip()
+                    ]
+                    if 0 <= index < len(options):
+                        return options[index]
+                    return correct_option
+                return correct_option
+        
+        enhanced_attempts = []
+        for attempt in attempts:
+            question = Question.query.get(attempt.question_id)
+            enhanced_attempts.append({
+                "attempt": attempt,
+                "question": question,
+                "correct_answer": get_correct_answer_text(question)
+            })
 
-        # Additional Time Analysis:
         avg_time_per_question = score.time_spent / score.total_questions if score.total_questions > 0 else 0
         times = [a.time_spent for a in attempts if a.time_spent]
         min_time = min(times) if times else 0
@@ -1460,7 +1514,7 @@ def quiz_results(score_id):
             quiz=quiz,
             score_percentage=score_percentage,
             avg_percentage=avg_percentage,
-            attempts=attempts,
+            attempts=enhanced_attempts,
             avg_time_per_question=avg_time_per_question,
             min_time=min_time,
             max_time=max_time
@@ -1468,8 +1522,7 @@ def quiz_results(score_id):
     except Exception as e:
         flash(f"Error loading quiz results: {str(e)}", "danger")
         return redirect(url_for("app_routes.user_dashboard"))
-
-
+    
 
 @app_routes.route("/user/view_attempt_details/<int:quiz_id>")
 def view_attempt_details(quiz_id):
