@@ -61,7 +61,15 @@
     .timer {
         font-size: 20px;
         font-weight: bold;
-        color: var(--dark);
+        color: var(--light);
+    }
+
+    .timer.warning {
+        color: var(--warning);
+    }
+
+    .timer.danger {
+        color: var(--danger);
     }
 
     .timer-icon {
@@ -345,7 +353,7 @@
         <h1 class="quiz-title">{{ quiz.name }}</h1>
         <div class="timer-container">
             <i class="fas fa-clock timer-icon"></i>
-            <div class="timer" id="timer"></div>
+            <div class="timer" id="global-timer">00:00</div>
         </div>
     </div>
 
@@ -384,9 +392,14 @@
                 {% if questions %}
                     {% for question in questions %}
                     <div class="question-container" id="question-{{ loop.index }}">
+                        <input type="hidden" name="times[{{ question.id }}]" id="time{{ question.id }}" value="0">
                         <h3 class="question-number">Question {{ loop.index }}</h3>
                         <p class="question-statement">
-                            {{ question.question_statement | safe if question.question_statement else "Question statement not available." }}
+                            {% if question.question_statement %}
+                                {{ question.question_statement | safe }}
+                            {% else %}
+                                Question statement not available.
+                            {% endif %}
                         </p>
                         {% if question.image_path %}
                         <img src="{{ url_for('static', filename=question.image_path) }}" alt="Question Image" class="question-image">
@@ -397,19 +410,21 @@
                             <label class="form-label">Your Answer</label>
                             <input type="number" class="form-control" name="answers[{{ question.id }}]" required>
                         </div>
-                        {% elif question.question_type == "multiselect" %}
+                        {% elif question.question_type == 'multiple' %}
                         <div class="options-container">
-                            {% for option in [question.option1, question.option2, question.option3, question.option4, question.option5] if option %}
-                            <div class="option-item">
-                                <input type="checkbox" id="q{{ question.id }}_{{ loop.index }}"
-                                       name="answers[{{ question.id }}][]"
-                                       value="{{ option }}"
-                                       onchange="updateSkipButton()">
-                                <label for="q{{ question.id }}_{{ loop.index }}">{{ option | safe }}</label>
-                            </div>
+                            {% for option in question.options_list %}
+                                {% if option %}
+                                    <div class="option-item">
+                                        <input type="checkbox" 
+                                            id="q{{ question.id }}_{{ loop.index }}"
+                                            name="answers[{{ question.id }}][]"
+                                            value="option{{ loop.index }}">
+                                        <label for="q{{ question.id }}_{{ loop.index }}">{{ option }}</label>
+                                    </div>
+                                {% endif %}
                             {% endfor %}
                         </div>
-                        {% elif question.question_type == "True/False" %}
+                        {% elif question.question_type == "true_false" %}
                         <div class="options-container">
                             <div class="option-item">
                                 <input type="radio" id="q{{ question.id }}_true" name="answers[{{ question.id }}]" value="True" onchange="updateSkipButton()" required>
@@ -469,168 +484,158 @@
 
 {% block scripts %}
 <script>
-  // GLOBAL VARIABLES
   let currentQuestion = 1;
   const totalQuestions = {{ questions|length }};
-  let questionStatus = Array(totalQuestions + 1).fill('unattempted'); // 1-indexed
-  let timeSpent = Array(totalQuestions + 1).fill(0); // Track time spent on each question
-  const pageLoadTime = Date.now(); // For total time spent
+  let questionStatus = Array(totalQuestions + 1).fill('unattempted');
+  const pageLoadTime = Date.now();
+  let questionStartTime = Date.now();
+  
+  // Quiz duration in seconds
+  const quizDuration = {{ quiz.time_duration * 60 if quiz.time_duration else ((quiz.end_time - quiz.start_time).total_seconds() if quiz.start_time and quiz.end_time else 3600) }};
+  const quizEndTime = pageLoadTime + (quizDuration * 1000);
 
-  // TIMER & SCHEDULE LOGIC
-  function startTimer() {
-      const timerElem = document.getElementById('timer');
-
-      {% if quiz.start_time and quiz.end_time %}
-          const quizStart = new Date("{{ quiz.start_time.isoformat() }}");
-          const quizEnd = new Date("{{ quiz.end_time.isoformat() }}");
-      {% else %}
-          const quizStart = new Date();
-          const quizEnd = new Date(quizStart.getTime() + ({{ quiz.time_duration or 60 }} * 60 * 1000));
-      {% endif %}
-
-      const timerInterval = setInterval(() => {
-          const now = new Date();
-          if (now < quizStart) {
-              timerElem.textContent = "Quiz not yet started";
-          }
-          else if (now >= quizEnd) {
-              clearInterval(timerInterval);
-              timerElem.textContent = "Time's up!";
-              showConfirmationModal(true);
-          }
-          else {
-              let timeLeft = quizEnd - now;
-              let minutes = Math.floor(timeLeft / 60000);
-              let seconds = Math.floor((timeLeft % 60000) / 1000);
-              timerElem.textContent = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
-          }
-          timeSpent[currentQuestion] += 1;
-      }, 1000);
+  // Track time spent per question
+  function recordTimeSpent(index) {
+    const now = Date.now();
+    const elapsed = Math.floor((now - questionStartTime) / 1000);
+    const current = getCurrentQuestionId();
+    if (current && current.element) {
+      const prev = parseInt(current.element.value || "0");
+      current.element.value = prev + elapsed;
+    }
+    questionStartTime = now;
   }
 
-  // FULLSCREEN REQUEST
-  function requestFullScreen() {
-      const docElem = document.documentElement;
-      if (docElem.requestFullscreen) {
-          docElem.requestFullscreen();
-      } else if (docElem.webkitRequestFullscreen) {
-          docElem.webkitRequestFullscreen();
-      } else if (docElem.msRequestFullscreen) {
-          docElem.msRequestFullscreen();
-      }
-  }
-
-  // NAVIGATION & STATUS UPDATES
   function updateNavigation() {
-      let currentCount = 0, attemptedCount = 0, skippedCount = 0, unattemptedCount = 0;
+    let counts = { current: 0, attempted: 0, skipped: 0, unattempted: 0 };
+    for (let i = 1; i <= totalQuestions; i++) {
+      const navItem = document.getElementById(`nav-${i}`);
+      navItem.className = `nav-item nav-${questionStatus[i]}${i === currentQuestion ? ' nav-current' : ''}`;
+      counts[questionStatus[i]]++;
+      if (i === currentQuestion) counts.current++;
+    }
+    document.getElementById('current-count').textContent = counts.current;
+    document.getElementById('attempted-count').textContent = counts.attempted;
+    document.getElementById('skipped-count').textContent = counts.skipped;
+    document.getElementById('unattempted-count').textContent = counts.unattempted;
+  }
 
-      for (let i = 1; i <= totalQuestions; i++) {
-          const navItem = document.getElementById(`nav-${i}`);
-          navItem.classList.remove('nav-attempted', 'nav-skipped', 'nav-unattempted', 'nav-current');
-
-          if (i === currentQuestion) {
-              navItem.classList.add('nav-current');
-              currentCount++;
-          } else if (questionStatus[i] === 'attempted') {
-              navItem.classList.add('nav-attempted');
-              attemptedCount++;
-          } else if (questionStatus[i] === 'skipped') {
-              navItem.classList.add('nav-skipped');
-              skippedCount++;
-          } else {
-              navItem.classList.add('nav-unattempted');
-              unattemptedCount++;
-          }
-      }
-
-      document.getElementById('current-count').textContent = currentCount;
-      document.getElementById('attempted-count').textContent = attemptedCount;
-      document.getElementById('skipped-count').textContent = skippedCount;
-      document.getElementById('unattempted-count').textContent = unattemptedCount;
+  function handleQuestionChange(newQuestion) {
+    recordTimeSpent(currentQuestion);
+    document.getElementById(`question-${currentQuestion}`).classList.remove('active');
+    currentQuestion = newQuestion;
+    document.getElementById(`question-${currentQuestion}`).classList.add('active');
+    document.getElementById('submit-btn').style.display = currentQuestion === totalQuestions ? 'flex' : 'none';
+    updateNavigation();
+    updateSkipButton();
   }
 
   function navigate(direction) {
-      document.getElementById(`question-${currentQuestion}`).classList.remove('active');
-      currentQuestion += direction;
-      if (currentQuestion < 1) currentQuestion = 1;
-      if (currentQuestion > totalQuestions) currentQuestion = totalQuestions;
-      document.getElementById(`question-${currentQuestion}`).classList.add('active');
-      document.getElementById('submit-btn').style.display = (currentQuestion === totalQuestions) ? 'flex' : 'none';
-      updateNavigation();
-      updateSkipButton();
+    const newQuestion = Math.min(Math.max(currentQuestion + direction, 1), totalQuestions);
+    handleQuestionChange(newQuestion);
   }
 
   function showQuestion(questionNumber) {
-      document.getElementById(`question-${currentQuestion}`).classList.remove('active');
-      currentQuestion = questionNumber;
-      document.getElementById(`question-${currentQuestion}`).classList.add('active');
-      document.getElementById('submit-btn').style.display = (currentQuestion === totalQuestions) ? 'flex' : 'none';
-      updateNavigation();
-      updateSkipButton();
+    handleQuestionChange(questionNumber);
   }
 
   function updateSkipButton() {
-      const inputs = document.getElementById(`question-${currentQuestion}`).querySelectorAll('input[type="radio"], input[type="checkbox"]');
-      let isOptionSelected = false;
-      inputs.forEach(input => {
-          if (input.checked) isOptionSelected = true;
-      });
-      document.getElementById('skip-btn').disabled = isOptionSelected;
+    const hasSelection = Array.from(
+      document.getElementById(`question-${currentQuestion}`)
+        .querySelectorAll('input[type="radio"], input[type="checkbox"]')
+    ).some(input => input.checked);
+    document.getElementById('skip-btn').disabled = hasSelection;
   }
 
   function skipQuestion() {
-      if (questionStatus[currentQuestion] === 'unattempted') {
-          questionStatus[currentQuestion] = 'skipped';
-      }
-      navigate(1);
+    if (questionStatus[currentQuestion] === 'unattempted') {
+      questionStatus[currentQuestion] = 'skipped';
+    }
+    navigate(1);
   }
 
   function saveAndNext() {
-      const inputs = document.getElementById(`question-${currentQuestion}`).querySelectorAll('input[type="radio"], input[type="checkbox"]');
-      let checked = false;
-      inputs.forEach(input => {
-          if (input.checked) {
-              checked = true;
-              questionStatus[currentQuestion] = 'attempted';
-          }
-      });
-
-      if (!checked && questionStatus[currentQuestion] === 'unattempted') {
-          questionStatus[currentQuestion] = 'skipped';
-      }
-      navigate(1);
+    const hasAnswers = Array.from(
+      document.getElementById(`question-${currentQuestion}`)
+        .querySelectorAll('input[type="radio"], input[type="checkbox"]')
+    ).some(input => input.checked);
+    if (hasAnswers) {
+      questionStatus[currentQuestion] = 'attempted';
+    } else if (questionStatus[currentQuestion] === 'unattempted') {
+      questionStatus[currentQuestion] = 'skipped';
+    }
+    navigate(1);
   }
 
-  function showConfirmationModal(force = false) {
-      const modal = document.getElementById('confirmation-modal');
-      modal.style.display = 'block';
-      if (force) {
-          document.querySelector('.modal-title').textContent = "Time's Up!";
-          document.getElementById('modal-text').textContent = "Your time has expired. Your answers will now be submitted.";
-          document.querySelector('.modal-btn-cancel').style.display = 'none';
-      }
+  function getCurrentQuestionId() {
+    const container = document.getElementById(`question-${currentQuestion}`);
+    if (!container) return null;
+    const hiddenInput = container.querySelector('input[type="hidden"][name^="times["]');
+    if (!hiddenInput) return null;
+    return {
+      element: hiddenInput,
+      questionId: hiddenInput.name.match(/\d+/)[0]
+    };
+  }
+
+  function showConfirmationModal() {
+    document.getElementById('confirmation-modal').style.display = 'block';
   }
 
   function hideConfirmationModal() {
-      document.getElementById('confirmation-modal').style.display = 'none';
+    document.getElementById('confirmation-modal').style.display = 'none';
   }
 
   function submitQuiz() {
-      const form = document.getElementById('quiz-form');
-      for (let i = 1; i <= totalQuestions; i++) {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = `times[${i}]`;
-          input.value = timeSpent[i] || 0;
-          form.appendChild(input);
-      }
-      form.submit();
+    recordTimeSpent(currentQuestion);
+    document.getElementById('quiz-form').submit();
   }
 
+  // SUBMISSION HANDLING
+  document.getElementById("quiz-form").addEventListener("submit", function(e) {
+    recordTimeSpent(currentQuestion);  // Final question's time
+    const totalTimeInput = document.createElement("input");
+    totalTimeInput.type = "hidden";
+    totalTimeInput.name = "total_time";
+    totalTimeInput.value = Math.floor((Date.now() - pageLoadTime) / 1000);
+    this.appendChild(totalTimeInput);
+  });
+
   document.addEventListener('DOMContentLoaded', function() {
-      document.getElementById(`question-${currentQuestion}`).classList.add('active');
+    const firstQuestion = document.querySelector(".question-container");
+    if (firstQuestion) {
+      currentQuestion = 1;
+      questionStartTime = Date.now();
+      document.getElementById(`question-1`).classList.add('active');
       updateNavigation();
-      startTimer();
+    }
+
+    // Countdown timer
+    const timerElement = document.getElementById("global-timer");
+    function updateTimer() {
+      const now = Date.now();
+      const remainingMs = quizEndTime - now;
+      const remainingSec = Math.max(0, Math.floor(remainingMs / 1000));
+      const minutes = String(Math.floor(remainingSec / 60)).padStart(2, '0');
+      const seconds = String(remainingSec % 60).padStart(2, '0');
+      timerElement.textContent = `${minutes}:${seconds}`;
+      
+      // Update timer color based on remaining time
+      timerElement.className = 'timer';
+      if (remainingSec <= 60) {
+        timerElement.classList.add('danger');
+      } else if (remainingSec <= 300) {
+        timerElement.classList.add('warning');
+      }
+
+      if (remainingSec <= 0) {
+        // Auto-submit quiz on timeout
+        submitQuiz();
+      }
+    }
+
+    setInterval(updateTimer, 1000);
+    updateTimer(); // Initial call
   });
 </script>
 {% endblock %}

@@ -120,9 +120,9 @@
             <label class="form-label" for="question_type">Question Type</label>
             <select class="form-control form-select" id="question_type" name="question_type" required>
                 <option value="single">Multiple Choice</option>
-                <option value="True/False">True / False</option>
+                <option value="true_false">True / False</option>
                 <option value="integer">Integer</option>
-                <option value="multiselect">Multi-Select</option>
+                <option value="multiple">Multi-Select</option>
             </select>
         </div>
 
@@ -194,85 +194,95 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const questionTypeSelect = document.getElementById('question_type');
-        const numOptionsInput = document.getElementById('num_options');
-        const optionsContainer = document.getElementById('options-container');
-    
-        function generateOptions() {
-            const type = questionTypeSelect.value;
-            const num = parseInt(numOptionsInput.value || '0');
-            optionsContainer.innerHTML = '';
-    
-            if (type === 'True/False') {
-                optionsContainer.innerHTML = `
-                    <div class="form-group">
-                        <label class="form-label">Select Correct Answer</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="correct_option" value="True" required>
-                            <label class="form-check-label">True</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="correct_option" value="False">
-                            <label class="form-check-label">False</label>
-                        </div>
+    const questionTypeSelect = document.getElementById('question_type');
+    const numOptionsInput = document.getElementById('num_options');
+    const optionsContainer = document.getElementById('options-container');
+
+    function generateOptions() {
+        const type = questionTypeSelect.value;
+        const num = parseInt(numOptionsInput.value || '0');
+        optionsContainer.innerHTML = '';
+
+        if (type === 'true_false') {
+            optionsContainer.innerHTML = `
+                <div class="form-group">
+                    <label class="form-label">Select Correct Answer</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="correct_options" value="true" required>
+                        <label class="form-check-label">True</label>
                     </div>
-                `;
-                numOptionsInput.disabled = true;
-            }
-    
-            else if (questionTypeSelect.value === 'integer') {
-              optionsContainer.innerHTML = `
-                  <div class="form-group">
-                      <label class="form-label">Correct Answer (Integer)</label>
-                      <input type="number" class="form-control" id="correct_answer" name="correct_answer" required>
-                  </div>
-              `;
-            }
-            else if (type === 'single') {
-                if (num >= 2) {
-                    for (let i = 1; i <= num; i++) {
-                        optionsContainer.innerHTML += `
-                            <div class="form-group">
-                                <label class="form-label" for="option${i}">Option ${i}</label>
-                                <input type="text" class="form-control" name="option${i}" required>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="correct_option" value="option${i}" required>
-                                    <label class="form-check-label">Mark as correct</label>
-                                </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="correct_options" value="false">
+                        <label class="form-check-label">False</label>
+                    </div>
+                </div>
+            `;
+            numOptionsInput.disabled = true;
+        }
+        else if (type === 'integer') {
+            optionsContainer.innerHTML = `
+                <div class="form-group">
+                    <label class="form-label">Correct Answer (Integer)</label>
+                    <input type="number" class="form-control" id="correct_answer" name="correct_answer" required>
+                </div>
+            `;
+            numOptionsInput.disabled = true;
+        }
+        else if (type === 'single') {
+            if (num >= 2) {
+                for (let i = 1; i <= num; i++) {
+                    optionsContainer.innerHTML += `
+                        <div class="form-group">
+                            <label class="form-label" for="option${i}">Option ${i}</label>
+                            <input type="text" class="form-control" name="option${i}" required>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="correct_option" value="option${i}" required>
+                                <label class="form-check-label">Mark as correct</label>
                             </div>
-                        `;
-                    }
-                    numOptionsInput.disabled = false;
+                        </div>
+                    `;
                 }
-            }
-    
-            else if (type === 'multiselect') {
-                if (num >= 2) {
-                    for (let i = 1; i <= num; i++) {
-                        optionsContainer.innerHTML += `
-                            <div class="form-group">
-                                <label class="form-label" for="option${i}">Option ${i}</label>
-                                <input type="text" class="form-control" name="option${i}" required>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="correct_options" value="option${i}">
-                                    <label class="form-check-label">Mark as correct</label>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    numOptionsInput.disabled = false;
-                }
-            }
-    
-            else {
-                optionsContainer.innerHTML = '';
-                numOptionsInput.disabled = true;
+                numOptionsInput.disabled = false;
             }
         }
+        else if (type === 'multiple') {
+            if (num >= 2) {
+                for (let i = 1; i <= num; i++) {
+                    optionsContainer.innerHTML += `
+                        <div class="form-group">
+                            <label class="form-label" for="option${i}">Option ${i}</label>
+                            <input type="text" class="form-control" name="option${i}" required>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="correct_options" value="option${i}">
+                                <label class="form-check-label">Mark as correct</label>
+                            </div>
+                        </div>
+                    `;
+                }
+                numOptionsInput.disabled = false;
+                
+                // Add a hidden note about multiple selection
+                optionsContainer.innerHTML += `
+                    <div class="alert alert-info mt-3">
+                        <small><i class="fas fa-info-circle"></i> Check all options that should be correct answers.</small>
+                    </div>
+                `;
+            }
+        }
+
+        else {
+            optionsContainer.innerHTML = '';
+            numOptionsInput.disabled = true;
+        }
+    }
+
+    questionTypeSelect.addEventListener('change', generateOptions);
+    numOptionsInput.addEventListener('input', generateOptions);
     
-        questionTypeSelect.addEventListener('change', generateOptions);
-        numOptionsInput.addEventListener('input', generateOptions);
-    });
+    // Initial call to set up the correct fields based on current selection
+    generateOptions();
+});
+
     </script>
      
 {% endblock %}

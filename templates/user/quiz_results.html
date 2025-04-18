@@ -189,6 +189,9 @@
 <div class="chart-container" style="position: relative; height: 300px; width: 100%; max-width: 400px; margin: 0 auto 40px;">
     <canvas id="resultsChart"></canvas>
 </div>
+<h3 style="margin-top: 40px; text-align: center;">Time Spent Per Question</h3>
+<canvas id="timeChart" style="max-width: 700px; margin: 0 auto;"></canvas>
+
 
 <div class="comparison-card">
     <div>
@@ -216,6 +219,21 @@
     </div>
 </div>
 
+
+
+{% macro option_text(question, option_key) %}
+    {%- set key = option_key|lower|trim -%}
+    {%- if key == "option1" %}{{ question.option1 }}
+    {%- elif key == "option2" %}{{ question.option2 }}
+    {%- elif key == "option3" %}{{ question.option3 }}
+    {%- elif key == "option4" %}{{ question.option4 }}
+    {%- elif key == "option5" %}{{ question.option5 }}
+    {%- elif key == "true" %}True
+    {%- elif key == "false" %}False
+    {%- else %}{{ option_key }}
+    {%- endif %}
+{% endmacro %}
+
 <div class="questions-card">
     <div class="card-header">
         <h2 class="card-title">Question Breakdown</h2>
@@ -224,13 +242,13 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th id="sort-number">#</th>
-                    <th id="sort-question">Question <i class="fas fa-sort"></i></th>
-                    <th id="sort-user-answer">Your Answer <i class="fas fa-sort"></i></th>
-                    <th id="sort-correct-answer">Correct Answer <i class="fas fa-sort"></i></th>
-                    <th id="sort-result">Result <i class="fas fa-sort"></i></th>
-                    <th id="sort-marks">Marks <i class="fas fa-sort"></i></th>
-                    <th id="sort-time">Time <i class="fas fa-sort"></i></th>
+                    <th>#</th>
+                    <th>Question</th>
+                    <th>Your Answer</th>
+                    <th>Correct Answer</th>
+                    <th>Result</th>
+                    <th>Marks</th>
+                    <th>Time</th>
                 </tr>
             </thead>
             <tbody>
@@ -238,8 +256,34 @@
                 <tr class="{% if item.attempt.is_correct %}bg-correct{% else %}bg-incorrect{% endif %}">
                     <td>{{ loop.index }}</td>
                     <td>{{ item.question.question_statement }}</td>
-                    <td>{{ item.attempt.user_answer }}</td>
-                    <td>{{ item.correct_answer }}</td>
+                    <td>
+                        {% if item.question.question_type == 'multiple' %}
+                            {% set user_ans = item.attempt.user_answer.split(',') if item.attempt.user_answer else [] %}
+                            {% for ans in user_ans %}
+                                {{ option_text(item.question, ans) }}{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        {% elif item.question.question_type == 'single' %}
+                            {{ option_text(item.question, item.attempt.user_answer) }}
+                        {% elif item.question.question_type == 'true_false' %}
+                            {{ option_text(item.question, item.attempt.user_answer) }}
+                        {% else %}
+                            {{ item.attempt.user_answer }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.question.question_type == 'multiple' %}
+                            {% set correct_ans = item.correct_answer.split(',') if item.correct_answer else [] %}
+                            {% for ans in correct_ans %}
+                                {{ option_text(item.question, ans) }}{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        {% elif item.question.question_type == 'single' %}
+                            {{ option_text(item.question, item.correct_answer) }}
+                        {% elif item.question.question_type == 'true_false' %}
+                            {{ option_text(item.question, item.correct_answer) }}
+                        {% else %}
+                            {{ item.correct_answer }}
+                        {% endif %}
+                    </td>
                     <td>
                         {% if item.attempt.is_correct %}
                             <span class="result-icon correct-icon">✓</span>
@@ -248,7 +292,11 @@
                         {% endif %}
                     </td>
                     <td>{{ item.attempt.marks_awarded }}/{{ item.question.marks }}</td>
-                    <td>{{ item.attempt.time_spent if item.attempt.time_spent else 'N/A' }} sec</td>
+                    <td>{{ item.attempt.time_spent or 0 }} sec</td>
+
+                </td>
+                    
+                    
                 </tr>
                 {% endfor %}
             </tbody>
@@ -269,10 +317,11 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     // Donut Chart for Answer Distribution
-    var correctCount = {{ attempts|selectattr('attempt.is_correct')|list|length }};
-    var totalQuestions = {{ attempts|length }};
+    var correctCount = {{ attempts | selectattr('attempt.is_correct') | list | length }};
+    var totalQuestions = {{ attempts | length }};
     var ctx = document.getElementById('resultsChart').getContext('2d');
     var resultsChart = new Chart(ctx, {
         type: 'doughnut',
@@ -294,49 +343,33 @@
         }
     });
 
-    // Table Sorting
-    var currentSortColumn = -1;
-    var currentSortOrder = 1;
-    var headers = document.querySelectorAll('.data-table th');
-    headers.forEach(function(header, index) {
-        header.addEventListener('click', function() {
-            sortTable(index);
-        });
-    });
-    function sortTable(columnIndex) {
-        if (currentSortColumn === columnIndex) {
-            currentSortOrder = -currentSortOrder;
-        } else {
-            currentSortOrder = 1;
+    // Time Per Question Chart
+    const timeLabels = {{ attempts | map(attribute='question.question_statement') | list | tojson }};
+    const timeData = {{ attempts | map(attribute='attempt') | map(attribute='time_spent') | list | tojson }};
+
+    new Chart(document.getElementById("timeChart"), {
+        type: 'bar',
+        data: {
+            labels: timeLabels.map((q, i) => `Q${i + 1}`),
+            datasets: [{
+                label: 'Time Spent (sec)',
+                data: timeData,
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Seconds'
+                    }
+                }
+            }
         }
-        currentSortColumn = columnIndex;
-        var table = document.querySelector('.data-table');
-        var rows = Array.from(table.querySelectorAll('tbody tr'));
-        var isNumeric = [true, false, false, false, false, true, true];
-        rows.sort(function(a, b) {
-            var aValue = a.cells[columnIndex].textContent.trim();
-            var bValue = b.cells[columnIndex].textContent.trim();
-            if (isNumeric[columnIndex]) {
-                aValue = parseFloat(aValue.split('/')[0]) || 0;
-                bValue = parseFloat(bValue.split('/')[0]) || 0;
-                return (aValue - bValue) * currentSortOrder;
-            } else {
-                return aValue.localeCompare(bValue) * currentSortOrder;
-            }
-        });
-        var tbody = table.querySelector('tbody');
-        tbody.innerHTML = '';
-        rows.forEach(function(row) {
-            tbody.appendChild(row);
-        });
-        headers.forEach(function(h, i) {
-            var icon = h.querySelector('i');
-            if (i === columnIndex) {
-                icon.className = currentSortOrder === 1 ? 'fas fa-sort-up' : 'fas fa-sort-down';
-            } else {
-                icon.className = 'fas fa-sort';
-            }
-        });
-    }z
+    });
 </script>
 {% endblock %}

@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, sessio
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from models import db, User, Subject, Chapter, Quiz, Question, Score, QuestionAttempt, ScoreComment, UserStrength
-from sqlalchemy import func, case
+from sqlalchemy import func, case,extract
 import bleach
 from datetime import datetime, timedelta
 from sqlalchemy import func
@@ -510,36 +510,76 @@ def add_quiz():
     
     try:
         subjects = Subject.query.all()
+        chapters_by_subject = {s.id: Chapter.query.filter_by(subject_id=s.id).all() for s in subjects}
         
         if request.method == "POST":
             name = request.form.get("name", "").strip()
             chapter_id = request.form.get("chapter_id")
-            
+            subject_id = request.form.get("subject_id")
             start_time_str = request.form.get("start_time")
             end_time_str = request.form.get("end_time")
             
+            # Validate required fields
             if not name or not chapter_id:
                 flash("Quiz name and chapter are required.", "danger")
-                return render_template("add_quiz.html", subjects=subjects)
+                return render_template(
+                    "add_quiz.html",
+                    subjects=subjects,
+                    chapters_by_subject=chapters_by_subject,
+                    form_data=request.form
+                )
+            
+            # Validate chapter belongs to selected subject
+            chapter = Chapter.query.get(chapter_id)
+            if not chapter or (subject_id and chapter.subject_id != int(subject_id)):
+                flash("Invalid chapter selected.", "danger")
+                return render_template(
+                    "add_quiz.html",
+                    subjects=subjects,
+                    chapters_by_subject=chapters_by_subject,
+                    form_data=request.form
+                )
             
             # Sanitize inputs
             name = bleach.clean(name)
             
-            # Parse dates if provided
+            # Parse datetime inputs
             start_time = None
             end_time = None
             
             if start_time_str:
                 try:
-                    start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+                    start_time = datetime.strptime(start_time_str, "%Y-%m-%dT%H:%M")
                 except ValueError:
-                    flash("Invalid start time format.", "warning")
+                    flash("Invalid start time format. Use YYYY-MM-DD HH:MM.", "warning")
+                    return render_template(
+                        "add_quiz.html",
+                        subjects=subjects,
+                        chapters_by_subject=chapters_by_subject,
+                        form_data=request.form
+                    )
             
             if end_time_str:
                 try:
-                    end_time = datetime.fromisoformat(end_time_str.replace('Z', '+00:00'))
+                    end_time = datetime.strptime(end_time_str, "%Y-%m-%dT%H:%M")
                 except ValueError:
-                    flash("Invalid end time format.", "warning")
+                    flash("Invalid end time format. Use YYYY-MM-DD HH:MM.", "warning")
+                    return render_template(
+                        "add_quiz.html",
+                        subjects=subjects,
+                        chapters_by_subject=chapters_by_subject,
+                        form_data=request.form
+                    )
+            
+            # Validate end_time > start_time
+            if start_time and end_time and end_time <= start_time:
+                flash("End time must be after start time.", "danger")
+                return render_template(
+                    "add_quiz.html",
+                    subjects=subjects,
+                    chapters_by_subject=chapters_by_subject,
+                    form_data=request.form
+                )
             
             # Create quiz
             new_quiz = Quiz(
@@ -555,17 +595,20 @@ def add_quiz():
             
             flash("Quiz added successfully!", "success")
             return redirect(url_for("app_routes.quiz_management"))
+        
+        return render_template(
+            "add_quiz.html",
+            subjects=subjects,
+            chapters_by_subject=chapters_by_subject
+        )
     except Exception as e:
         db.session.rollback()
         flash(f"Error adding quiz: {str(e)}", "danger")
-    
-    # Get all chapters grouped by subject for the dropdown
-    chapters_by_subject = {}
-    for subject in subjects:
-        chapters_by_subject[subject.id] = Chapter.query.filter_by(subject_id=subject.id).all()
-    
-    return render_template("add_quiz.html", subjects=subjects, chapters_by_subject=chapters_by_subject)
-
+        return render_template(
+            "add_quiz.html",
+            subjects=subjects,
+            chapters_by_subject=chapters_by_subject
+        )
 
 @app_routes.route("/admin/add_question/<int:quiz_id>", methods=["GET", "POST"])
 def add_question(quiz_id):
@@ -616,21 +659,28 @@ def add_question(quiz_id):
                         return render_template("add_question.html", quiz=quiz, quiz_id=quiz_id)
                     # Store as string for consistency
                     correct_option = str(correct_answer)
+                elif question_type == "true_false":
+                    correct_option = request.form.get("correct_options", "").strip().lower()
+                    if not correct_option:
+                        flash("Please select True or False as the correct answer", "danger")
+                        return render_template("add_question.html", quiz=quiz, quiz_id=quiz_id)
+                    # Remove this line - it's incorrect and unnecessary
+                    # question.correct_option = correct_option
 
-                elif question_type in ["single", "multiselect"]:
+                elif question_type in ["single", "multiple"]:
                     options = [
                         bleach.clean(request.form.get(f"option{i}", "").strip())
                         for i in range(1, 6)
                         if request.form.get(f"option{i}", "").strip()
                     ]
 
-                    if question_type == "multiselect":
+                    if question_type == "multiple":
                         correct_options = request.form.getlist("correct_options")
                         if not correct_options:
                             flash("Please select at least one correct option.", "danger")
                             return render_template("add_question.html", quiz=quiz, quiz_id=quiz_id)
                         correct_option = ",".join(correct_options)
-                    else:
+                    elif question_type == "single":
                         correct_option = request.form.get("correct_option", "").strip()
                         if not correct_option:
                             flash("Please select the correct option.", "danger")
@@ -688,36 +738,53 @@ def edit_quiz(quiz_id):
     
     quiz = Quiz.query.get_or_404(quiz_id)
     
-    if request.method == "POST":
-        quiz.name = request.form.get("name", "").strip()
+    try:
+        if request.method == "POST":
+            name = request.form.get("name", "").strip()
+            start_time_str = request.form.get("start_time")
+            end_time_str = request.form.get("end_time")
+            
+            # Validate required fields
+            if not name:
+                flash("Quiz name is required.", "danger")
+                return render_template("edit_quiz.html", quiz=quiz, form_data=request.form)
+            
+            # Sanitize inputs
+            quiz.name = bleach.clean(name)
+            
+            # Parse datetime inputs
+            if start_time_str:
+                try:
+                    quiz.start_time = datetime.strptime(start_time_str, "%Y-%m-%dT%H:%M")
+                except ValueError:
+                    flash("Invalid start time format. Use YYYY-MM-DD HH:MM.", "warning")
+                    return render_template("edit_quiz.html", quiz=quiz, form_data=request.form)
+            else:
+                quiz.start_time = None
+            
+            if end_time_str:
+                try:
+                    quiz.end_time = datetime.strptime(end_time_str, "%Y-%m-%dT%H:%M")
+                except ValueError:
+                    flash("Invalid end time format. Use YYYY-MM-DD HH:MM.", "warning")
+                    return render_template("edit_quiz.html", quiz=quiz, form_data=request.form)
+            else:
+                quiz.end_time = None
+            
+            # Validate end_time > start_time
+            if quiz.start_time and quiz.end_time and quiz.end_time <= quiz.start_time:
+                flash("End time must be after start time.", "danger")
+                return render_template("edit_quiz.html", quiz=quiz, form_data=request.form)
+            
+            db.session.commit()
+            flash("Quiz updated successfully!", "success")
+            return redirect(url_for("app_routes.quiz_management"))
         
-        # Get the start_time and end_time strings from the form
-        start_time_str = request.form.get("start_time")
-        end_time_str = request.form.get("end_time")
-        
-        # Convert the string values to datetime objects
-        if start_time_str:
-            try:
-                quiz.start_time = datetime.fromisoformat(start_time_str)
-            except ValueError:
-                flash("Invalid start time format. Please try again.", "warning")
-        else:
-            quiz.start_time = None
-
-        if end_time_str:
-            try:
-                quiz.end_time = datetime.fromisoformat(end_time_str)
-            except ValueError:
-                flash("Invalid end time format. Please try again.", "warning")
-        else:
-            quiz.end_time = None
-
-        db.session.commit()
-        flash("Quiz updated successfully!", "success")
-        return redirect(url_for("app_routes.quiz_management"))
-    
-    return render_template("edit_quiz.html", quiz=quiz)
-
+        return render_template("edit_quiz.html", quiz=quiz)
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error updating quiz: {str(e)}", "danger")
+        return render_template("edit_quiz.html", quiz=quiz)
 
 
 @app_routes.route("/admin/delete_quiz/<int:quiz_id>", methods=["POST"])
@@ -779,19 +846,31 @@ def edit_question(question_id):
             question.explanation = explanation
             
             # Handle different question types properly
-            if question_type == "multiselect":
+            if question_type == "multiple" or question_type == "multiselect":
                 selected = request.form.getlist("correct_options")
                 if not selected:
                     flash("Please select at least one correct option", "danger")
                     return render_template("edit_question.html", question=question)
                 question.correct_option = ",".join(selected)
-            else:
+            elif question_type == "integer":
+                correct_option = request.form.get("correct_options")
+                if not correct_option:
+                    flash("Please enter the correct integer answer", "danger")
+                    return render_template("edit_question.html", question=question)
+                question.correct_option = correct_option
+            elif question_type == "true_false":
+                correct_option = request.form.get("correct_options")
+                if not correct_option:
+                    flash("Please select True or False", "danger")
+                    return render_template("edit_question.html", question=question)
+                question.correct_option = correct_option.lower()
+            else:  # single
                 correct_option = request.form.get("correct_options")
                 if not correct_option:
                     flash("Please select the correct option", "danger")
                     return render_template("edit_question.html", question=question)
                 question.correct_option = correct_option
-            
+
             # Handle image upload if present
             if "image" in request.files:
                 file = request.files["image"]
@@ -799,18 +878,19 @@ def edit_question(question_id):
                     filename = secure_filename(file.filename)
                     file_path = os.path.join(UPLOAD_FOLDER, filename)
                     file.save(file_path)
-                    question.image_path = os.path.join("uploads", filename)  # Store relative path
-            
+                    question.image_path = os.path.join("uploads", filename) # Store relative path
+
             db.session.commit()
-            
             flash("Question updated successfully!", "success")
             return redirect(url_for("app_routes.quiz_management"))
+        
+        return render_template("edit_question.html",question=question)
+
     except Exception as e:
         db.session.rollback()
         flash(f"Error updating question: {str(e)}", "danger")
-    
-    return render_template("edit_question.html", question=question)
-
+        return render_template("edit_question.html", question=question)
+  
 @app_routes.route("/admin/delete_question/<int:question_id>", methods=["GET", "POST"])  # Fixed: Added URL parameter and POST method
 def delete_question(question_id):
     if session.get("role") != "admin":
@@ -837,6 +917,8 @@ def delete_question(question_id):
         flash(f"Error deleting question: {str(e)}", "danger")
     
     return redirect(url_for("app_routes.quiz_management"))
+
+
 
 @app_routes.route("/admin/view_users")
 def view_users():
@@ -1090,58 +1172,49 @@ def user_summary():
     try:
         user_id = session.get("user_id")
         user = User.query.get(user_id)
-        user_scores = Score.query.filter_by(user_id=user_id).all()
+        user_scores = Score.query.filter_by(user_id=user_id).order_by(Score.time_stamp_of_attempt.asc()).all()
         
-        # 1) Stat Cards Data
+        # === 1) Stat Cards ===
         quiz_ids = {score.quiz_id for score in user_scores}
         total_quizzes = len(quiz_ids)
         average_score = user.average_score if user_scores else 0.0
-        total_questions_attempted = sum(s.questions_answered for s in user_scores)
+        total_questions_attempted = sum(s.total_questions for s in user_scores)
         total_correct = sum(s.questions_correct for s in user_scores)
         overall_accuracy = (total_correct / total_questions_attempted * 100) if total_questions_attempted > 0 else 0.0
 
-        # 2) Performance Over Time Data (Line Chart)
-        score_timeline = []
-        for s in user_scores:
-            score_timeline.append({
-                "date": s.time_stamp_of_attempt.strftime("%Y-%m-%d"),
-                "score": s.accuracy  # assuming Score.accuracy returns a number between 0 and 100
-            })
-        # If empty, provide a sample point so the chart renders
-        if not score_timeline:
-            score_timeline = [{"date": "2025-01-01", "score": 0}]
+        # === 2) Time Spent per Quiz (for bar chart) ===
+        time_spent_data = [
+            {"quiz_name": s.quiz.name, "time_spent": round(s.time_spent / 60, 1)}  # in minutes
+            for s in user_scores if s.quiz and s.time_spent is not None
+        ]
 
-        # 3) Time Spent per Quiz Data (Bar Chart)
-        time_spent_data = []
-        for s in user_scores:
-            quiz_obj = Quiz.query.get(s.quiz_id)
-            if quiz_obj:
-                minutes_spent = round(s.time_spent / 60, 1)
-                time_spent_data.append({
-                    "quiz_name": quiz_obj.name,
-                    "time_spent": minutes_spent
-                })
-        if not time_spent_data:
-            time_spent_data = [{"quiz_name": "Sample Quiz", "time_spent": 0}]
+        # === 3) Performance Over Time (for line chart) ===
+        score_timeline = [
+            {"date": s.time_stamp_of_attempt.strftime("%Y-%m-%d"), 
+             "score": round((s.total_scored / s.quiz.total_marks * 100), 1) if s.quiz.total_marks > 0 else 0}
+            for s in user_scores if s.quiz
+        ]
 
-        # 4) Difficulty Level Analysis Data (Grouped Bar Chart)
+        # === 4) Difficulty Level Analysis (Grouped Bar) ===
         difficulties = ["Easy", "Medium", "Hard"]
         diff_stats = {d: {"attempted": 0, "correct": 0} for d in difficulties}
-        all_attempts = (QuestionAttempt.query
-                        .join(Score, QuestionAttempt.score_id == Score.id)
-                        .filter(Score.user_id == user_id)
-                        .all())
+
+        all_attempts = QuestionAttempt.query \
+            .join(Score, QuestionAttempt.score_id == Score.id) \
+            .filter(Score.user_id == user_id).all()
+
         for attempt in all_attempts:
             question = Question.query.get(attempt.question_id)
             if question and question.difficulty in difficulties:
                 diff_stats[question.difficulty]["attempted"] += 1
                 if attempt.is_correct:
                     diff_stats[question.difficulty]["correct"] += 1
-        difficulty_order = difficulties
-        attempted_list = [diff_stats[d]["attempted"] for d in difficulties]
-        correct_list = [diff_stats[d]["correct"] for d in difficulties]
 
-        # Pass all variables to template
+        difficulty_order = difficulties
+        attempted_list = [diff_stats[d]["attempted"] for d in difficulty_order]
+        correct_list = [diff_stats[d]["correct"] for d in difficulty_order]
+
+        # === Final: Render template ===
         return render_template(
             "user_summary.html",
             total_quizzes=total_quizzes,
@@ -1155,6 +1228,7 @@ def user_summary():
             attempted_list=attempted_list,
             correct_list=correct_list
         )
+
     except Exception as e:
         flash(f"Error loading summary: {str(e)}", "danger")
         return redirect(url_for("app_routes.user_dashboard"))
@@ -1246,161 +1320,123 @@ def submit_quiz(quiz_id):
         quiz = Quiz.query.get_or_404(quiz_id)
         user_id = session.get("user_id")
         now = datetime.now()
+
+        # Get total time from form
+        total_time_from_form = int(request.form.get("total_time", 0))
         
-        # Check if user already took this quiz
+        # Check if user already submitted
         existing_score = Score.query.filter_by(quiz_id=quiz_id, user_id=user_id).first()
         if existing_score:
             flash("You have already taken this quiz.", "info")
             return redirect(url_for("app_routes.view_attempt_details", quiz_id=quiz_id))
-        
-        # Build dictionary of time spent per question
+
+        # Build time dictionary per question
         times = {}
         for key, value in request.form.items():
             if key.startswith("times["):
                 qid = key[6:-1]
                 try:
-                    times[qid] = int(value)
-                except ValueError:
+                    times[qid] = int(value.strip())
+                except (ValueError, AttributeError):
                     times[qid] = 0
-        
-        total_time_from_form = int(request.form.get("total_time", 0))
+
         total_score = 0
         questions_correct = 0
         questions_answered = 0
         computed_total_time = 0
         
-        # Create new score record
+        # Create Score object
         new_score = Score(
             quiz_id=quiz_id,
             user_id=user_id,
-            time_spent=0,  # to be updated later
+            time_spent=0,
             time_stamp_of_attempt=now,
             completion_status="Completed"
         )
-        
         db.session.add(new_score)
-        db.session.commit()  # Generate new_score.id
-        
+        db.session.commit()
+
+        # Evaluate answers
+        current_app.logger.info(f"Processing quiz {quiz_id} for user {user_id}")
         questions = Question.query.filter_by(quiz_id=quiz_id).all()
-        
         for question in questions:
             qid_str = str(question.id)
             is_correct = False
             marks_awarded = 0
-            
-            # Get question type and normalize it for comparison
             question_type = question.question_type.lower() if question.question_type else ""
-            
-            # Handle true/false questions specifically
-            if question_type in ["true_false", "truefalse"]:
+            user_answer = None
+
+            current_app.logger.info(f"Question {question.id}: type={question_type}, statement={question.question_statement[:20]}...")
+
+            if question_type == "single":
+                user_answer = request.form.get(f"answers[{question.id}]")
+                current_app.logger.info(f"Single-type: user_answer={user_answer}, correct_option={question.correct_option}")
+                if user_answer is not None:
+                    questions_answered += 1
+                    computed_total_time += times.get(qid_str, 0)
+                    user_answer = user_answer.strip().lower()
+                    correct_option = question.correct_option.strip() if question.correct_option else ""
+
+                    # Handle correct_option
+                    correct_text = ""
+                    if correct_option.startswith("option") and correct_option[6:].isdigit() and 1 <= int(correct_option[6:]) <= 6:
+                        option_index = correct_option[6:]  # e.g., "4" from "option4"
+                        option_field = f"option{option_index}"
+                        correct_text = getattr(question, option_field, "").strip().lower()
+                        current_app.logger.info(f"Option-based: option_field={option_field}, correct_text={correct_text}")
+                    elif correct_option.isdigit() and 1 <= int(correct_option) <= 6:
+                        option_field = f"option{correct_option}"
+                        correct_text = getattr(question, option_field, "").strip().lower()
+                        current_app.logger.info(f"Index-based: option_field={option_field}, correct_text={correct_text}")
+                    elif correct_option:
+                        correct_text = correct_option.lower()
+                        current_app.logger.info(f"Text-based: correct_text={correct_text}")
+                    else:
+                        current_app.logger.warning(f"Invalid correct_option '{correct_option}' for question {question.id}")
+
+                    # Compare answers
+                    is_correct = user_answer == correct_text and correct_text != ""
+                    marks_awarded = question.marks if is_correct else 0
+                    current_app.logger.info(f"Comparison: user_answer={user_answer}, correct_text={correct_text}, is_correct={is_correct}, marks={marks_awarded}")
+            # Handle other question types (simplified)
+            elif question_type == "true_false":
                 user_answer = request.form.get(f"answers[{question.id}]")
                 if user_answer is not None:
                     questions_answered += 1
                     computed_total_time += times.get(qid_str, 0)
-                    
-                    # Normalize both answers for consistent comparison
-                    user_answer_norm = str(user_answer).lower().strip()
-                    correct_answer = question.correct_option
-                    
-                    if correct_answer is not None:
-                        correct_answer_norm = str(correct_answer).lower().strip()
-                        
-                        # Handle various boolean representations
-                        true_values = ['true', 't', 'yes', 'y', '1']
-                        false_values = ['false', 'f', 'no', 'n', '0']
-                        
-                        # Compare normalized values
-                        if (user_answer_norm in true_values and correct_answer_norm in true_values) or \
-                           (user_answer_norm in false_values and correct_answer_norm in false_values):
-                            is_correct = True
-                            marks_awarded = question.marks
-                            
-                        current_app.logger.info(
-                            f"[TrueFalse] QID {question.id}: user_answer='{user_answer_norm}', correct_answer='{correct_answer_norm}', is_correct={is_correct}"
-                        )
-            
-            # Handle multiselect questions
-            elif question_type == "multiselect":
-                selected_options = request.form.getlist(f"answers[{question.id}]")
+                    is_correct = user_answer.lower() == question.correct_option.lower()
+                    marks_awarded = question.marks if is_correct else 0
+            elif question_type == "multiple":
+                selected_options = request.form.getlist(f"answers[{question.id}][]")
                 if selected_options:
                     questions_answered += 1
                     computed_total_time += times.get(qid_str, 0)
-                    
-                    # Safely process correct options
-                    correct_option_str = question.correct_option
-                    if correct_option_str is not None:
-                        stored_tokens = [token.strip() for token in correct_option_str.split(",") if token and token.strip()]
-                        correct_options = set(token.lower() for token in stored_tokens)
-                        selected_set = set(opt.strip().lower() for opt in selected_options if opt)
-                        
-                        current_app.logger.info(
-                            f"[Multiselect] QID {question.id}: correct_options={correct_options}, selected_set={selected_set}"
-                        )
-                        
-                        if correct_options == selected_set:
-                            is_correct = True
-                            marks_awarded = question.marks
-                        elif correct_options:
-                            # Partial marks logic
-                            common = len(correct_options & selected_set)
-                            marks_awarded = question.marks * (common / len(correct_options))
-            
-            # Handle all other question types (single choice, integer, etc.)
-            else:
+                    correct_set = set(opt.strip().lower() for opt in question.correct_option.split(","))
+                    selected_set = set(opt.strip().lower() for opt in selected_options)
+                    is_correct = correct_set == selected_set
+                    marks_awarded = question.marks if is_correct else question.marks * (len(correct_set & selected_set) / len(correct_set))
+            elif question_type == "integer":
                 user_answer = request.form.get(f"answers[{question.id}]")
                 if user_answer is not None:
                     questions_answered += 1
                     computed_total_time += times.get(qid_str, 0)
-                    
-                    # For integer questions
-                    if question_type == "integer":
-                        try:
-                            if int(user_answer.strip()) == int(question.correct_option.strip()):
-                                is_correct = True
-                                marks_awarded = question.marks
-                        except (ValueError, TypeError, AttributeError):
-                            pass
-                    
-                    # For single choice questions
-                    else:
-                        # Normalize both answers
-                        user_answer_norm = user_answer.strip().lower() if user_answer else ""
-                        correct_answer = question.correct_option
-                        
-                        if correct_answer is not None:
-                            correct_answer_norm = correct_answer.strip().lower()
-                            
-                            # Direct comparison
-                            if user_answer_norm == correct_answer_norm:
-                                is_correct = True
-                                marks_awarded = question.marks
-                            else:
-                                # Try to match with option text if correct_option is a number or option reference
-                                if correct_answer.isdigit() or correct_answer.lower().startswith("option"):
-                                    option_index = correct_answer.lower().replace("option", "") if correct_answer.lower().startswith("option") else correct_answer
-                                    if option_index.isdigit():
-                                        option_index = int(option_index)
-                                        if 1 <= option_index <= 6:
-                                            option_attr = f"option{option_index}"
-                                            if hasattr(question, option_attr):
-                                                option_text = getattr(question, option_attr)
-                                                if option_text and user_answer_norm == option_text.lower().strip():
-                                                    is_correct = True
-                                                    marks_awarded = question.marks
-            
+                    try:
+                        is_correct = int(user_answer) == int(question.correct_option)
+                        marks_awarded = question.marks if is_correct else 0
+                    except ValueError:
+                        is_correct = False
+                        marks_awarded = 0
+
             total_score += marks_awarded
             if is_correct:
                 questions_correct += 1
-            
-            # Format the user answer for storage
-            stored_user_answer = ""
-            if question_type == "multiselect" and 'selected_options' in locals() and selected_options:
-                stored_user_answer = ", ".join(selected_options)
-            else:
-                stored_user_answer = user_answer if user_answer is not None else ""
-            
-            # Record each question attempt
-            attempt = QuestionAttempt(
+
+            # Save answer string
+            stored_user_answer = ", ".join(selected_options) if question_type == "multiple" else (user_answer or "")
+            current_app.logger.info(f"Stored answer: {stored_user_answer}, is_correct={is_correct}")
+
+            # Record attempt
+            db.session.add(QuestionAttempt(
                 score_id=new_score.id,
                 question_id=question.id,
                 user_id=user_id,
@@ -1408,26 +1444,26 @@ def submit_quiz(quiz_id):
                 is_correct=is_correct,
                 marks_awarded=marks_awarded,
                 time_spent=times.get(qid_str, 0)
-            )
-            
-            db.session.add(attempt)
-        
+            ))
+
         final_total_time = total_time_from_form if total_time_from_form > 0 else computed_total_time
         
-        # Update the score record with final values
+        # Final update
         new_score.total_scored = total_score
         new_score.questions_correct = questions_correct
         new_score.questions_answered = questions_answered
         new_score.total_questions = len(questions)
         new_score.time_spent = final_total_time
-        
+
         db.session.commit()
-        
+        current_app.logger.info(f"Quiz submitted: score={total_score}, correct={questions_correct}/{len(questions)}")
+
         flash(f"Quiz submitted successfully! You scored {total_score:.1f} points.", "success")
         return redirect(url_for("app_routes.quiz_results", score_id=new_score.id))
-        
+
     except Exception as e:
         db.session.rollback()
+        current_app.logger.error(f"Error submitting quiz: {str(e)}")
         flash(f"Error submitting quiz: {str(e)}", "danger")
         return redirect(url_for("app_routes.user_dashboard"))
 
@@ -1462,7 +1498,7 @@ def quiz_results(score_id):
             correct_option = (question.correct_option or "").strip()
             if not correct_option:
                 return ""
-            if question.question_type.lower() == "multiselect":
+            if question.question_type.lower() == "multiple":
                 tokens = [token.strip() for token in correct_option.split(",") if token.strip()]
                 options = [
                     (question.option1 or "").strip(),
@@ -1509,6 +1545,10 @@ def quiz_results(score_id):
         min_time = min(times) if times else 0
         max_time = max(times) if times else 0
 
+        for a in enhanced_attempts:
+            print(f"Q: {a['question'].question_statement[:20]}..., Time: {a['attempt'].time_spent}")
+
+
         return render_template("quiz_results.html",
             score=score,
             quiz=quiz,
@@ -1542,6 +1582,8 @@ def view_attempt_details(quiz_id):
         user = User.query.get(user_id)
         
         attempt_details = []
+        time_analysis_data = []
+        
         attempts = QuestionAttempt.query.filter_by(score_id=score.id).all()
         for attempt in attempts:
             question = Question.query.get(attempt.question_id)
@@ -1554,7 +1596,15 @@ def view_attempt_details(quiz_id):
                     'marks': question.marks,
                     'marks_awarded': attempt.marks_awarded
                 })
+                
+                # Add per-question time analysis data
+                if attempt.time_spent is not None:
+                    time_analysis_data.append({
+                        "question": question.question_statement[:50] + ("..." if len(question.question_statement) > 50 else ""),
+                        "time": attempt.time_spent
+                    })
         
+        # Time spent per difficulty level (optional chart already handled)
         average_times = db.session.query(
             Question.difficulty,
             func.avg(QuestionAttempt.time_spent).label('avg_time')
@@ -1569,6 +1619,7 @@ def view_attempt_details(quiz_id):
             key=lambda x: difficulty_order.index(x.difficulty) if x.difficulty in difficulty_order else 999
         )
         
+        # Instructor feedback
         score_comments = ScoreComment.query.filter_by(
             score_id=score.id,
             is_private=False
@@ -1581,11 +1632,13 @@ def view_attempt_details(quiz_id):
             quiz=quiz,
             attempt_details=attempt_details,
             average_times=average_times,
-            score_comments=score_comments
+            score_comments=score_comments,
+            time_analysis_data=time_analysis_data  # <-- NEW
         )
     except Exception as e:
         flash(f"Error loading attempt details: {str(e)}", "danger")
         return redirect(url_for("app_routes.user_dashboard"))
+
 
 #########################
 # API ROUTES (for AJAX)
@@ -1648,7 +1701,7 @@ def quiz_timeout():
                 is_correct = False
                 marks_awarded = 0
                 
-                if question.question_type == 'multiselect':
+                if question.question_type == 'multiple':
                     correct_options = set(question.correct_option.split(','))
                     selected_options = set(user_answer.split(','))
                     

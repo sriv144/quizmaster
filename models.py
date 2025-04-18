@@ -305,13 +305,10 @@ class QuestionDifficulty(enum.Enum):
 
 class QuestionType(enum.Enum):
     SINGLE = "single"
-    MULTIPLE = "multiselect"
-    TEXT = "text"
+    MULTIPLE = "multiple"
     INTEGER = "integer"
-    FLOAT = "float"
     TRUE_FALSE = "true_false"
-    MATCHING = "matching"
-    ORDERING = "ordering"
+
 
 class Question(db.Model):
     """Question model for quiz questions"""
@@ -369,36 +366,28 @@ class Question(db.Model):
     
     @property
     def options_list(self):
-        """Return list of all valid options"""
-        options = []
-        for i in range(1, 7):
-            option = getattr(self, f'option{i}')
-            if option:
-                options.append(option)
-        return options
-    
+        return [
+            self.option1, self.option2, self.option3,
+            self.option4, self.option5
+        ]
+
     def check_answer(self, user_answer):
         """Check if user's answer is correct"""
-        if self.question_type == "multiselect":
+        if self.question_type == "multiple":
             correct_options = set(self.correct_option.split(","))
             user_options = set(user_answer if isinstance(user_answer, list) else [user_answer])
             return correct_options == user_options
-        elif self.question_type in ["integer", "float"]:
+        elif self.question_type =='single':
+            return str(user_answer).strip().lower()==self.correct_option.strip().lower()
+        elif self.question_type == "integer":
             try:
-                return float(user_answer) == float(self.correct_option)
+                return int(user_answer) == int(self.correct_option)
             except (ValueError, TypeError):
                 return False
         elif self.question_type == "true_false":
             return str(user_answer).lower() == self.correct_option.lower()
-        elif self.question_type == "matching":
-            try:
-                correct_matches = json.loads(self.matching_data)
-                user_matches = json.loads(user_answer) if isinstance(user_answer, str) else user_answer
-                return correct_matches == user_matches
-            except (json.JSONDecodeError, TypeError):
-                return False
         else:
-            return str(user_answer) == self.correct_option
+            return False
 
 class Score(db.Model):
     """Score model for tracking quiz attempts and performance"""

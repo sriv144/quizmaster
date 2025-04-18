@@ -194,8 +194,9 @@
       <canvas id="timeAnalysisChart"></canvas>
     </div>
     <div class="chart-box">
-      <canvas id="difficultyChart"></canvas>
+      <canvas id="difficultyTimeChart"></canvas>
     </div>
+    
   </div>
 
   <!-- Question Analysis Table -->
@@ -216,7 +217,6 @@
       <tr>
         <td>
           {{ detail.question.question_statement }}<br>
-          <button class="btn-toggle" onclick="toggleSection('view{{ loop.index }}')">View Full Question</button>
           <div id="view{{ loop.index }}" class="toggle-section">
             <strong>Full Question:</strong> {{ detail.question.question_statement }}
           </div>
@@ -265,7 +265,7 @@
             <span style="color: red;">Incorrect</span>
           {% endif %}
         </td>
-        <td>{{ detail.time_spent if detail.time_spent else 'N/A' }} sec</td>
+        <td>{{ detail.time_spent }} sec</td>
         <td>
           <button class="btn-toggle" onclick="toggleSection('solution{{ loop.index }}')">Solution</button>
           <div id="solution{{ loop.index }}" class="toggle-section">
@@ -305,12 +305,13 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  // Pie Chart for Answer Distribution
-  var ctx = document.getElementById('resultsChart').getContext('2d');
-  var correctCount = {{ attempt_details | selectattr('is_correct') | list | length }};
-  var totalQuestions = {{ attempt_details | length }};
-  var incorrectCount = totalQuestions - correctCount;
-  new Chart(ctx, {
+  // === Pie Chart: Correct vs Incorrect ===
+  const pieCtx = document.getElementById('resultsChart').getContext('2d');
+  const correctCount = {{ attempt_details | selectattr('is_correct') | list | length }};
+  const totalQuestions = {{ attempt_details | length }};
+  const incorrectCount = totalQuestions - correctCount;
+
+  new Chart(pieCtx, {
     type: 'pie',
     data: {
       labels: ['Correct', 'Incorrect'],
@@ -329,83 +330,96 @@
     }
   });
 
-  // Bar Chart for Time Analysis per Question
-  var timeCtx = document.getElementById('timeAnalysisChart').getContext('2d');
-  var questionLabels = [
-    {% for detail in attempt_details %}
-      "Q{{ loop.index }}",
-    {% endfor %}
-  ];
-  var timeData = [
-    {% for detail in attempt_details %}
-      {{ detail.time_spent if detail.time_spent else 0 }},
-    {% endfor %}
-  ];
-  new Chart(timeCtx, {
-    type: 'bar',
-    data: {
-      labels: questionLabels,
-      datasets: [{
-        label: 'Time Spent (sec)',
-        data: timeData,
-        backgroundColor: '#2196F3'
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        title: { display: true, text: 'Time Analysis per Question', font: { size: 16 } }
+  // === Bar Chart: Time Per Question ===
+  document.addEventListener("DOMContentLoaded", function () {
+    const timeData = {{ time_analysis_data | tojson }};
+    const timeCtx = document.getElementById("timeAnalysisChart").getContext("2d");
+
+    new Chart(timeCtx, {
+      type: 'bar',
+      data: {
+        labels: timeData.map(d => d.question),
+        datasets: [{
+          label: 'Time Spent (sec)',
+          data: timeData.map(d => d.time),
+          backgroundColor: 'rgba(255, 206, 86, 0.6)',
+          borderColor: 'rgba(255, 206, 86, 1)',
+          borderWidth: 1
+        }]
       },
-      scales: { y: { beginAtZero: true } }
-    }
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: "Seconds" }
+          }
+        }
+      }
+    });
   });
 
-  // Bar Chart for Difficulty Analysis vs. Correct Answers
-  var diffLabels = ["Easy", "Medium", "Hard"];
-  var correctCounts = [
-    {% for diff in diffLabels %}
-      {{ attempt_details | selectattr("question.difficulty", "equalto", diff) | selectattr("is_correct") | list | length }}{% if not loop.last %}, {% endif %}
-    {% endfor %}
-  ];
-  var incorrectCounts = [
-    {% for diff in diffLabels %}
-      {{ (attempt_details | selectattr("question.difficulty", "equalto", diff) | list | length) - (attempt_details | selectattr("question.difficulty", "equalto", diff) | selectattr("is_correct") | list | length) }}{% if not loop.last %}, {% endif %}
-    {% endfor %}
-  ];
-  var diffCtx = document.getElementById('difficultyChart').getContext('2d');
-  new Chart(diffCtx, {
-    type: 'bar',
-    data: {
-      labels: diffLabels,
-      datasets: [{
-        label: 'Correct',
-        data: correctCounts,
+   // === Custom Chart: Difficulty vs Time (Correct vs Incorrect) ===
+   const difficultyLabels = ["Easy", "Medium", "Hard"];
+
+const difficultyData = {
+  Easy: { correct: 0, incorrect: 0 },
+  Medium: { correct: 0, incorrect: 0 },
+  Hard: { correct: 0, incorrect: 0 }
+};
+
+{% for detail in attempt_details %}
+  {% set d = detail.question.difficulty %}
+  {% if d in ['Easy', 'Medium', 'Hard'] %}
+    difficultyData["{{ d }}"]["{{ 'correct' if detail.is_correct else 'incorrect' }}"] += {{ detail.time_spent or 0 }};
+  {% endif %}
+{% endfor %}
+
+const timeChartCtx = document.getElementById('difficultyTimeChart').getContext('2d');
+new Chart(timeChartCtx, {
+  type: 'bar',
+  data: {
+    labels: difficultyLabels,
+    datasets: [
+      {
+        label: 'Time on Correct Answers (sec)',
+        data: difficultyLabels.map(d => difficultyData[d].correct),
         backgroundColor: '#4CAF50'
-      },{
-        label: 'Incorrect',
-        data: incorrectCounts,
-        backgroundColor: '#F44336'
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { position: 'bottom' },
-        title: { display: true, text: 'Difficulty Analysis vs. Correct Answers', font: { size: 16 } }
       },
-      scales: { y: { beginAtZero: true } }
+      {
+        label: 'Time on Incorrect Answers (sec)',
+        data: difficultyLabels.map(d => difficultyData[d].incorrect),
+        backgroundColor: '#F44336'
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom' },
+      title: {
+        display: true,
+        text: 'Time Spent by Difficulty (Correct vs Incorrect)',
+        font: { size: 16 }
+      }
+    },
+    scales: {
+      x: { stacked: true },
+      y: {
+        stacked: true,
+        beginAtZero: true,
+        title: { display: true, text: "Time (seconds)" }
+      }
     }
-  });
+  }
+});
 
-  // Toggle function for hidden sections
+
+  // === Utility: Toggle Solution/Full Question Views ===
   function toggleSection(id) {
-    var elem = document.getElementById(id);
-    if (elem.style.display === "none" || elem.style.display === "") {
-      elem.style.display = "block";
-    } else {
-      elem.style.display = "none";
-    }
+    const elem = document.getElementById(id);
+    elem.style.display = (elem.style.display === "none" || !elem.style.display) ? "block" : "none";
   }
 </script>
 {% endblock %}
+

@@ -115,7 +115,7 @@
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label" for="name">Quiz Name</label>
-                    <input type="text" class="form-control" id="name" name="name" required>
+                    <input type="text" class="form-control" id="name" name="name" value="{{ form_data.name if form_data else '' }}" required>
                 </div>
                 
                 <div class="form-group">
@@ -123,7 +123,7 @@
                     <select class="form-control" id="subject_id" name="subject_id" required>
                         <option value="">Select Subject</option>
                         {% for subject in subjects %}
-                        <option value="{{ subject.id }}">{{ subject.name }}</option>
+                        <option value="{{ subject.id }}" {{ 'selected' if form_data and form_data.subject_id == subject.id|string else '' }}>{{ subject.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -134,7 +134,11 @@
                     <label class="form-label" for="chapter_id">Chapter</label>
                     <select class="form-control" id="chapter_id" name="chapter_id" required>
                         <option value="">Select Chapter</option>
-                        <!-- Chapters will be populated via JavaScript -->
+                        {% if form_data and form_data.subject_id %}
+                            {% for chapter in chapters_by_subject[form_data.subject_id|int] %}
+                            <option value="{{ chapter.id }}" {{ 'selected' if form_data and form_data.chapter_id == chapter.id|string else '' }}>{{ chapter.name }}</option>
+                            {% endfor %}
+                        {% endif %}
                     </select>
                 </div>
             </div>
@@ -146,12 +150,12 @@
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label" for="start_time">Schedule Start Time</label>
-                    <input type="datetime-local" class="form-control" id="start_time" name="start_time">
+                    <input type="datetime-local" class="form-control" id="start_time" name="start_time" value="{{ form_data.start_time if form_data else '' }}">
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="end_time">Schedule End Time (Optional)</label>
-                    <input type="datetime-local" class="form-control" id="end_time" name="end_time">
+                    <label class="form-label" for="end_time">Schedule End Time</label>
+                    <input type="datetime-local" class="form-control" id="end_time" name="end_time" value="{{ form_data.end_time if form_data else '' }}">
                 </div>
             </div>
         </div>
@@ -170,14 +174,9 @@
         const subjectSelect = document.getElementById('subject_id');
         const chapterSelect = document.getElementById('chapter_id');
         
-        subjectSelect.addEventListener('change', function() {
-            const subjectId = this.value;
-            
-            // Clear chapter dropdown
+        function populateChapters(subjectId, selectedChapterId = null) {
             chapterSelect.innerHTML = '<option value="">Select Chapter</option>';
-            
             if (subjectId) {
-                // Fetch chapters for selected subject
                 fetch(`/api/chapters/${subjectId}`)
                     .then(response => response.json())
                     .then(data => {
@@ -185,10 +184,25 @@
                             const option = document.createElement('option');
                             option.value = chapter.id;
                             option.textContent = chapter.name;
+                            if (selectedChapterId && chapter.id == selectedChapterId) {
+                                option.selected = true;
+                            }
                             chapterSelect.appendChild(option);
                         });
                     });
             }
+        }
+        
+        // Populate chapters on page load if subject_id is pre-selected
+        const initialSubjectId = subjectSelect.value;
+        const initialChapterId = '{{ form_data.chapter_id if form_data else '' }}';
+        if (initialSubjectId) {
+            populateChapters(initialSubjectId, initialChapterId);
+        }
+        
+        // Update chapters on subject change
+        subjectSelect.addEventListener('change', function() {
+            populateChapters(this.value);
         });
     });
 </script>

@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+={% extends "base.html" %}
 {% block title %}Edit Quiz - Quiz Master{% endblock %}
 
 {% block additional_css %}
@@ -75,18 +75,18 @@
         <!-- Quiz Name -->
         <div class="mb-3">
             <label for="name" class="form-label">Quiz Name</label>
-            <input type="text" class="form-control" id="name" name="name" value="{{ quiz.name }}" required>
+            <input type="text" class="form-control" id="name" name="name" value="{{ form_data.name if form_data else quiz.name }}" required>
         </div>
         
         <!-- Quiz Timings -->
         <div class="row mb-3">
             <div class="col-md-6">
                 <label for="start_time" class="form-label">Start Time</label>
-                <input type="datetime-local" class="form-control" id="start_time" name="start_time" value="{{ quiz.start_time.isoformat() if quiz.start_time else '' }}">
+                <input type="datetime-local" class="form-control" id="start_time" name="start_time" value="{{ form_data.start_time if form_data else (quiz.start_time.strftime('%Y-%m-%dT%H:%M') if quiz.start_time else '') }}">
             </div>
             <div class="col-md-6">
                 <label for="end_time" class="form-label">End Time</label>
-                <input type="datetime-local" class="form-control" id="end_time" name="end_time" value="{{ quiz.end_time.isoformat() if quiz.end_time else '' }}">
+                <input type="datetime-local" class="form-control" id="end_time" name="end_time" value="{{ form_data.end_time if form_data else (quiz.end_time.strftime('%Y-%m-%dT%H:%M') if quiz.end_time else '') }}">
             </div>
         </div>
         

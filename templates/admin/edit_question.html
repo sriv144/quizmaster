@@ -107,8 +107,9 @@
         <label class="form-label" for="question_type">Question Type</label>
         <select class="form-control form-select" id="question_type" name="question_type" required>
           <option value="single" {% if question.question_type == 'single' %}selected{% endif %}>Single Choice</option>
-          <option value="multiselect" {% if question.question_type == 'multiselect' %}selected{% endif %}>Multiple Select</option>
+          <option value="multiple" {% if question.question_type == 'multiple' %}selected{% endif %}>Multiple Select</option>
           <option value="integer" {% if question.question_type == 'integer' %}selected{% endif %}>Integer</option>
+          <option value="true_false" {% if question.question_type == 'true_false' %}selected{% endif %}>True-False</option>
         </select>
       </div>
 
@@ -137,7 +138,7 @@
     </div>
 
     <!-- Options -->
-    <div class="row">
+    <div class="row" id="options_row" {% if question.question_type in ['integer', 'true_false'] %}style="display:none;"{% endif %}>
       <div class="col-md-6 form-group">
         <label class="form-label" for="option1">Option 1:</label>
         <input type="text" class="form-control" name="option1" id="option1" value="{{ question.option1 }}" required>
@@ -156,7 +157,7 @@
       </div>
     </div>
 
-    <!-- Correct Answer Section (Single Choice) -->
+    <!-- Correct Answer Sections -->
     <div id="single_correct_div" class="form-group mb-3" {% if question.question_type != 'single' %}style="display: none;"{% endif %}>
       <label class="form-label">Correct Option:</label>
       <select name="correct_options" class="form-select">
@@ -167,8 +168,7 @@
       </select>
     </div>
 
-    <!-- Correct Answer Section (Multiselect) -->
-    <div id="multiselect_correct_div" class="form-group mb-3" {% if question.question_type != 'multiselect' %}style="display: none;"{% endif %}>
+    <div id="multiselect_correct_div" class="form-group mb-3" {% if question.question_type != 'multiple' %}style="display: none;"{% endif %}>
       <label class="form-label">Select Correct Options (Multiple):</label>
       {% set correct_options = question.correct_option.split(',') if question.correct_option else [] %}
       <div class="form-check">
@@ -189,16 +189,25 @@
       </div>
     </div>
 
-    <!-- Correct Answer Section (Integer) -->
     <div id="integer_correct_div" class="form-group mb-3" {% if question.question_type != 'integer' %}style="display: none;"{% endif %}>
       <label class="form-label">Correct Answer (Numeric):</label>
-      <input type="number" class="form-control" name="correct_options" value="{{ question.correct_option if question.question_type == 'integer' else '' }}" placeholder="Enter the correct numeric answer">
+      <input type="number" class="form-control" name="correct_options" 
+             value="{{ question.correct_option if question.question_type == 'integer' else '' }}" 
+             step="1" required>
+    </div>
+
+    <div id="truefalse_correct_div" class="form-group mb-3" {% if question.question_type != 'true_false' %}style="display: none;"{% endif %}>
+      <label class="form-label">Correct Answer (True/False):</label>
+      <select name="correct_options" class="form-select" required>
+        <option value="true" {% if question.correct_option|lower == 'true' %}selected{% endif %}>True</option>
+        <option value="false" {% if question.correct_option|lower == 'false' %}selected{% endif %}>False</option>
+      </select>
     </div>
 
     <!-- Solution Explanation -->
     <div class="form-group mb-3">
       <label class="form-label">Solution Explanation (Optional):</label>
-      <textarea class="form-control" id="solution_text" name="explanation" rows="3" placeholder="Enter explanation for the correct answer (optional)">{{ question.explanation }}</textarea>
+      <textarea class="form-control" id="solution_text" name="explanation" rows="3">{{ question.explanation }}</textarea>
     </div>
 
     <!-- Solution Image Upload -->
@@ -225,103 +234,70 @@
     </div>
   </div>
 </form>
-{% endblock %}
 
 {% block scripts %}
 <script>
-  // Toggle correct answer sections based on question type selection
-  document.addEventListener("DOMContentLoaded", function() {
-      const qTypeSelect = document.getElementById('question_type');
-      const singleDiv = document.getElementById('single_correct_div');
-      const multiDiv = document.getElementById('multiselect_correct_div');
-      const integerDiv = document.getElementById('integer_correct_div');
-      
-      function updateQuestionControls() {
-          const qType = qTypeSelect.value;
-          if (qType === "single") {
-              singleDiv.style.display = "block";
-              multiDiv.style.display = "none";
-              integerDiv.style.display = "none";
-          } else if (qType === "multiselect") {
-              singleDiv.style.display = "none";
-              multiDiv.style.display = "block";
-              integerDiv.style.display = "none";
-          } else if (qType === "integer") {
-              singleDiv.style.display = "none";
-              multiDiv.style.display = "none";
-              integerDiv.style.display = "block";
-          }
-      }
-      qTypeSelect.addEventListener("change", updateQuestionControls);
-      updateQuestionControls();
-  });
+document.addEventListener("DOMContentLoaded", function() {
+    const qTypeSelect = document.getElementById('question_type');
+    const optionsRow = document.getElementById('options_row');
+    const answerSections = {
+        single: document.getElementById('single_correct_div'),
+        multiple: document.getElementById('multiselect_correct_div'),
+        integer: document.getElementById('integer_correct_div'),
+        true_false: document.getElementById('truefalse_correct_div')
+    };
 
-  // Image upload for question image
-  document.addEventListener('DOMContentLoaded', function() {
-      const uploadBox = document.getElementById('image-upload-box');
-      const fileInput = document.getElementById('image');
-      const preview = document.getElementById('image-preview');
-      uploadBox.addEventListener('click', () => fileInput.click());
-      uploadBox.addEventListener('dragover', (e) => {
-          e.preventDefault();
-          uploadBox.style.backgroundColor = '#e9e9e9';
-      });
-      uploadBox.addEventListener('dragleave', () => {
-          uploadBox.style.backgroundColor = '';
-      });
-      uploadBox.addEventListener('drop', (e) => {
-          e.preventDefault();
-          uploadBox.style.backgroundColor = '';
-          handleFile(e.dataTransfer.files[0]);
-      });
-      fileInput.addEventListener('change', (e) => {
-          handleFile(e.target.files[0]);
-      });
-      function handleFile(file) {
-          if (file && file.type.startsWith('image/')) {
-              const reader = new FileReader();
-              reader.onload = (e) => {
-                  preview.innerHTML = `<img src="${e.target.result}" alt="Uploaded Image" style="max-width: 100%;">`;
-              };
-              reader.readAsDataURL(file);
-          } else {
-              alert('Please upload a valid image file.');
-          }
-      }
-  });
+    function updateQuestionControls() {
+        const qType = qTypeSelect.value;
+        
+        // Toggle options row visibility
+        optionsRow.style.display = ['single', 'multiple'].includes(qType) ? '' : 'none';
+        
+        // Toggle all answer sections
+        Object.values(answerSections).forEach(div => div.style.display = 'none');
+        if (answerSections[qType]) {
+            answerSections[qType].style.display = 'block';
+        }
+    }
 
-  // Image upload for solution image
-  document.addEventListener('DOMContentLoaded', function() {
-      const solUploadBox = document.getElementById('solution-upload-box');
-      const solFileInput = document.getElementById('solution-image-upload');
-      const solPreview = document.getElementById('solution-image-preview');
-      solUploadBox.addEventListener('click', () => solFileInput.click());
-      solUploadBox.addEventListener('dragover', (e) => {
-          e.preventDefault();
-          solUploadBox.style.backgroundColor = '#e9e9e9';
-      });
-      solUploadBox.addEventListener('dragleave', () => {
-          solUploadBox.style.backgroundColor = '';
-      });
-      solUploadBox.addEventListener('drop', (e) => {
-          e.preventDefault();
-          solUploadBox.style.backgroundColor = '';
-          handleSolFile(e.dataTransfer.files[0]);
-      });
-      solFileInput.addEventListener('change', (e) => {
-          handleSolFile(e.target.files[0]);
-      });
-      function handleSolFile(file) {
-          if (file && file.type.startsWith('image/')) {
-              const reader = new FileReader();
-              reader.onload = (e) => {
-                  solPreview.innerHTML = `<img src="${e.target.result}" alt="Solution Image" style="max-width: 100%;">`;
-              };
-              reader.readAsDataURL(file);
-          } else {
-              alert('Please upload a valid image file.');
-          }
-      }
-  });
+    qTypeSelect.addEventListener('change', updateQuestionControls);
+    updateQuestionControls(); // Initial call
+
+    // Image upload handling
+    function setupImageUpload(uploadBoxId, previewId, fileInputId) {
+        const uploadBox = document.getElementById(uploadBoxId);
+        const preview = document.getElementById(previewId);
+        const fileInput = document.getElementById(fileInputId);
+
+        uploadBox.addEventListener('click', () => fileInput.click());
+        uploadBox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadBox.style.backgroundColor = '#e9e9e9';
+        });
+        uploadBox.addEventListener('dragleave', () => {
+            uploadBox.style.backgroundColor = '';
+        });
+        uploadBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadBox.style.backgroundColor = '';
+            handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+        function handleFile(file) {
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    preview.innerHTML = `<img src="${e.target.result}" style="max-width: 200px;">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    }
+
+    setupImageUpload('image-upload-box', 'image-preview', 'image-upload');
+    setupImageUpload('solution-upload-box', 'solution-image-preview', 'solution-image-upload');
+});
 </script>
+{% endblock %}
 {% endblock %}
