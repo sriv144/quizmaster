@@ -29,7 +29,7 @@ This project was built using the following technologies:
 | :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Backend** | ![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white) `Python` ![Flask](https://img.shields.io/badge/Flask-000000?style=flat&logo=flask&logoColor=white) `Flask` |
 | **Frontend** | ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white) `HTML5` ![Bootstrap](https://img.shields.io/badge/Bootstrap-7952B3?style=flat&logo=bootstrap&logoColor=white) `Bootstrap` |
-| **Database** | `SQLite` / `PostgreSQL` / `Your_Database` _(<- Please update this!)_                                                                                                       |
+| **Database** | `SQLite`                                                                                                       |
 
 ---
 
