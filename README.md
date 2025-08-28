@@ -6,12 +6,6 @@
   </p>
 </div>
 
-<div align="center">
-  <img src="https://img.shields.io/github/license/sriv144/quizmaster?style=for-the-badge" alt="License"/>
-  <img src="https://img.shields.io/github/issues/sriv144/quizmaster?style=for-the-badge&color=blueviolet" alt="Issues"/>
-  <img src="https://img.shields.io/github/stars/sriv144/quizmaster?style=for-the-badge&color=yellow" alt="Stars"/>
-</div>
-
 ---
 
 ## ✨ Features
