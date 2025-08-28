@@ -2,31 +2,34 @@
 
 <div align="center">
   <p>
-    A full-stack web application for creating and participating in quizzes. Test your knowledge, build your own quizzes, and track your performance with a modern, responsive, and user-friendly experience.
+    A dynamic quiz application built with Python Flask and Bootstrap. Users can test their knowledge on various topics and compete for the top spot on the leaderboard!
   </p>
 </div>
+
+
 
 ---
 
 ## ✨ Features
 
-* 🔐 **User Authentication**: Secure sign-up and sign-in functionality.
-* 📝 **Quiz Management**: Create, edit, and delete quizzes with custom questions and options.
-* 🎮 **Interactive Quizzes**: Browse, search, and attempt quizzes with a time limit and automatic submission.
-* 📊 **Progress Tracking**: View detailed results, statistics, and see your ranking among other users.
-* 📱 **Responsive Design**: Fully accessible and functional on desktops, tablets, and mobile devices.
+* **👤 User Authentication**: Secure login and registration system.
+* **📚 Topic Selection**: Choose from a variety of quiz categories.
+* **❓ Interactive Quizzes**: A clean and intuitive interface for answering questions.
+* **💯 Real-time Scoring**: Get instant feedback and see your score update live.
+* **🏆 Leaderboard**: Check the leaderboard to see how you rank against other players.
+* **📱 Responsive Design**: Built with Bootstrap for a seamless experience on both desktop and mobile devices.
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Technology Stack
 
-This project is built with the MERN stack and other modern technologies.
+This project was built using the following technologies:
 
-| Area       | Technology                                                                                           |
-| :--------- | :--------------------------------------------------------------------------------------------------- |
-| **Frontend** | ![React](https://img.shields.io/badge/React-61DAFB?style=flat&logo=react&logoColor=black) `React` `CSS` |
-| **Backend** | ![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat&logo=nodedotjs&logoColor=white) `Node.js` `Express` |
-| **Database** | ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat&logo=mongodb&logoColor=white) `MongoDB` |
+| Area      | Technology                                                                                                                                                                   |
+| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Backend** | ![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white) `Python` ![Flask](https://img.shields.io/badge/Flask-000000?style=flat&logo=flask&logoColor=white) `Flask` |
+| **Frontend** | ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white) `HTML5` ![Bootstrap](https://img.shields.io/badge/Bootstrap-7952B3?style=flat&logo=bootstrap&logoColor=white) `Bootstrap` |
+| **Database** | `SQLite` / `PostgreSQL` / `Your_Database` _(<- Please update this!)_                                                                                                       |
 
 ---
 
@@ -36,10 +39,7 @@ To get a local copy up and running, follow these simple steps.
 
 ### Prerequisites
 
-Make sure you have the following installed on your machine:
-* Node.js
-* npm (Node Package Manager)
-* MongoDB (local or a cloud instance like MongoDB Atlas)
+Make sure you have **Python 3** and **pip** installed on your machine.
 
 ### Installation & Setup
 
@@ -49,72 +49,47 @@ Make sure you have the following installed on your machine:
     cd quizmaster
     ```
 
-2.  **Backend Setup**
+2.  **Create and Activate a Virtual Environment**
+    * It's highly recommended to use a virtual environment to manage project dependencies.
+
+    * **On macOS/Linux:**
+        ```sh
+        python3 -m venv venv
+        source venv/bin/activate
+        ```
+    * **On Windows:**
+        ```sh
+        python -m venv venv
+        .\venv\Scripts\activate
+        ```
+
+3.  **Install Dependencies**
+    * Install all the required Python packages from the `requirements.txt` file.
     ```sh
-    cd backend
-    npm install
-    ```
-    Create a `.env` file in the `backend` directory and add the following variables:
-    ```env
-    PORT=5000
-    MONGO_URI=<YOUR_MONGODB_CONNECTION_STRING>
-    JWT_SECRET=<YOUR_JWT_SECRET>
-    ```
-    Start the backend server:
-    ```sh
-    npm start
+    pip install -r requirements.txt
     ```
 
-3.  **Frontend Setup**
-    ```sh
-    cd ../frontend
-    npm install
-    ```
-    Create a `.env` file in the `frontend` directory and add the following:
+4.  **Set Up Environment Variables** (Optional)
+    * If your app uses a `.env` file for configuration (like a secret key), create it now.
     ```env
-    REACT_APP_BACKEND_URL=http://localhost:5000
+    FLASK_APP=app.py
+    FLASK_ENV=development
+    SECRET_KEY='your_super_secret_key'
     ```
-    Start the React development server:
+
+5.  **Run the Application**
+    * Start the Flask development server.
     ```sh
-    npm start
+    flask run
     ```
-    Your application should now be running at `http://localhost:3000`!
+    Your application should now be running at `http://127.0.0.1:5000/`!
 
 ---
 
-## 📡 API Endpoints
 
-The application exposes the following REST API endpoints.
-
-#### User Routes
-
-| Method | Endpoint               | Description            |
-| :----- | :--------------------- | :--------------------- |
-| `POST` | `/api/users/signup`    | User registration      |
-| `POST` | `/api/users/signin`    | User login             |
-| `GET`  | `/api/users/profile`   | Get user profile       |
-| `PUT`  | `/api/users/update`    | Update user profile    |
-
-#### Quiz Routes
-
-| Method   | Endpoint                     | Description              |
-| :------- | :--------------------------- | :----------------------- |
-| `POST`   | `/api/quizzes/create`        | Create a new quiz        |
-| `GET`    | `/api/quizzes/:id`           | Get quiz details         |
-| `PUT`    | `/api/quizzes/:id/edit`      | Edit a quiz              |
-| `DELETE` | `/api/quizzes/:id/delete`    | Delete a quiz            |
-| `GET`    | `/api/quizzes/:id/stats`     | Get quiz statistics      |
-| `POST`   | `/api/quizzes/progress`      | Track quiz progress      |
-| `POST`   | `/api/quizzes/submit`        | Submit quiz results      |
 
 ---
 
-## 🤝 Contributing
+## 📜 License
 
-Contributions make the open-source community an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
-
-1.  Fork the Project
-2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4.  Push to the Branch (`git push origin feature/AmazingFeature`)
-5.  Open a Pull Request
+Distributed under the MIT License. See `LICENSE` for more information.
