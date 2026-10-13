@@ -1,0 +1,16 @@
+packages:
+  - apps/*
+  - packages/*
+  - migration
+
+allowBuilds:
+  '@prisma/engines': true
+  '@scarf/scarf': false
+  argon2: true
+  esbuild: true
+  prisma: true
+
+onlyBuiltDependencies:
+  - argon2
+  - esbuild
+  - prisma

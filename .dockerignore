@@ -1,0 +1,17 @@
+.git
+**/node_modules
+**/dist
+**/build
+**/.react-router
+**/.env
+**/.env.*
+!**/.env.example
+**/src/generated/prisma
+migration/input
+migration/output
+instance
+quiz_master_env
+output
+test-results
+playwright-report
+**/*.log

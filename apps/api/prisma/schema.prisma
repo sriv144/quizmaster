@@ -1,0 +1,296 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  LEARNER
+}
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum QuizType {
+  PRACTICE
+  ASSESSMENT
+  EXAM
+  SURVEY
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  INTEGER
+  TRUE_FALSE
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  TIMED_OUT
+  ABANDONED
+  NEEDS_REVIEW
+}
+
+enum AnswerRevealPolicy {
+  NEVER
+  AFTER_SUBMISSION
+  AFTER_CLOSE
+}
+
+enum MigrationStatus {
+  CLEAN
+  NORMALIZED
+  NEEDS_REVIEW
+}
+
+model User {
+  id                    String               @id @default(uuid()) @db.Uuid
+  email                 String               @unique @db.VarChar(320)
+  displayName           String?              @db.VarChar(120)
+  dateOfBirth           DateTime?            @db.Date
+  contactPhone          String?              @db.VarChar(30)
+  role                  Role                 @default(LEARNER)
+  passwordHash          String?
+  passwordResetRequired Boolean              @default(false)
+  active                Boolean              @default(true)
+  emailVerifiedAt       DateTime?
+  lastLoginAt           DateTime?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  legacyId              Int?                 @unique
+  sessions              Session[]
+  resetTokens           PasswordResetToken[]
+  createdQuizzes        Quiz[]               @relation("QuizCreator")
+  attempts              QuizAttempt[]
+  comments              ScoreComment[]       @relation("CommentAuthor")
+  auditEvents           AuditEvent[]
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String   @unique @db.Char(64)
+  csrfHash  String   @db.Char(64)
+  userAgent String?  @db.VarChar(300)
+  ipAddress String?  @db.VarChar(64)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique @db.Char(64)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model Subject {
+  id              String          @id @default(uuid()) @db.Uuid
+  name            String          @db.VarChar(120)
+  description     String?
+  code            String?         @unique @db.VarChar(30)
+  active          Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  legacyId        Int?            @unique
+  migrationStatus MigrationStatus @default(CLEAN)
+  chapters        Chapter[]
+}
+
+model Chapter {
+  id              String          @id @default(uuid()) @db.Uuid
+  subjectId       String          @db.Uuid
+  name            String          @db.VarChar(120)
+  description     String?
+  sequence        Int             @default(0)
+  active          Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  legacyId        Int?            @unique
+  migrationStatus MigrationStatus @default(CLEAN)
+  subject         Subject         @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  quizzes         Quiz[]
+
+  @@index([subjectId, sequence])
+}
+
+model Quiz {
+  id                 String               @id @default(uuid()) @db.Uuid
+  chapterId          String               @db.Uuid
+  createdById        String?              @db.Uuid
+  title              String               @db.VarChar(160)
+  description        String?
+  instructions       String?
+  type               QuizType             @default(ASSESSMENT)
+  status             QuizStatus           @default(DRAFT)
+  opensAt            DateTime?
+  closesAt           DateTime?
+  durationSeconds    Int?
+  maxAttempts        Int?                 @default(1)
+  passingPercent     Decimal              @default(0) @db.Decimal(5, 2)
+  revealPolicy       AnswerRevealPolicy   @default(AFTER_SUBMISSION)
+  randomizeQuestions Boolean              @default(false)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  legacyId           Int?                 @unique
+  migrationStatus    MigrationStatus      @default(CLEAN)
+  chapter            Chapter              @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  creator            User?                @relation("QuizCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  questions          Question[]
+  attempts           QuizAttempt[]
+
+  @@index([chapterId, status])
+  @@index([opensAt, closesAt])
+}
+
+model Question {
+  id              String          @id @default(uuid()) @db.Uuid
+  quizId          String          @db.Uuid
+  prompt          String
+  explanation     String?
+  type            QuestionType
+  difficulty      String          @default("Medium") @db.VarChar(20)
+  marks           Decimal         @default(1) @db.Decimal(8, 2)
+  negativeMarks   Decimal         @default(0) @db.Decimal(8, 2)
+  required        Boolean         @default(true)
+  sequence        Int             @default(0)
+  correctInteger  Int?
+  correctBoolean  Boolean?
+  mediaAssetId    String?         @db.Uuid
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  legacyId        Int?            @unique
+  migrationStatus MigrationStatus @default(CLEAN)
+  quiz            Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options         QuestionOption[]
+  mediaAsset      MediaAsset?     @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+
+  @@index([quizId, sequence])
+}
+
+model QuestionOption {
+  id         String   @id @default(uuid()) @db.Uuid
+  questionId String   @db.Uuid
+  text       String
+  position   Int
+  isCorrect  Boolean  @default(false)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, position])
+}
+
+model QuizAttempt {
+  id                    String          @id @default(uuid()) @db.Uuid
+  quizId                String          @db.Uuid
+  userId                String          @db.Uuid
+  attemptNumber         Int
+  status                AttemptStatus   @default(IN_PROGRESS)
+  startedAt             DateTime        @default(now())
+  expiresAt             DateTime?
+  submittedAt           DateTime?
+  totalScore            Decimal         @default(0) @db.Decimal(10, 2)
+  maxScore              Decimal         @default(0) @db.Decimal(10, 2)
+  questionsAnswered     Int             @default(0)
+  questionsCorrect      Int             @default(0)
+  timeSpentSeconds      Int             @default(0)
+  orderSeed             String          @db.VarChar(64)
+  legacyId              Int?            @unique
+  legacyScore           Decimal?        @db.Decimal(10, 2)
+  legacyQuestionCount   Int?
+  migrationStatus       MigrationStatus @default(CLEAN)
+  migrationNote         String?
+  ipAddress             String?         @db.VarChar(64)
+  deviceInfo            String?         @db.VarChar(300)
+  quiz                   Quiz            @relation(fields: [quizId], references: [id], onDelete: Restrict)
+  user                   User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  questions              AttemptQuestion[]
+  comments               ScoreComment[]
+
+  @@unique([quizId, userId, attemptNumber])
+  @@index([userId, startedAt])
+  @@index([quizId, status])
+}
+
+model AttemptQuestion {
+  id                String         @id @default(uuid()) @db.Uuid
+  attemptId         String         @db.Uuid
+  sourceQuestionId  String?        @db.Uuid
+  position          Int
+  prompt            String
+  explanation       String?
+  type              QuestionType
+  options           Json?
+  answerKey         Json
+  marks             Decimal        @db.Decimal(8, 2)
+  negativeMarks     Decimal        @db.Decimal(8, 2)
+  attempt           QuizAttempt    @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  answer            AttemptAnswer?
+
+  @@unique([attemptId, position])
+  @@index([sourceQuestionId])
+}
+
+model AttemptAnswer {
+  id                String          @id @default(uuid()) @db.Uuid
+  attemptQuestionId String          @unique @db.Uuid
+  answer            Json
+  answeredAt        DateTime        @default(now())
+  timeSpentSeconds  Int             @default(0)
+  isCorrect         Boolean?
+  marksAwarded      Decimal?        @db.Decimal(8, 2)
+  attemptQuestion   AttemptQuestion @relation(fields: [attemptQuestionId], references: [id], onDelete: Cascade)
+}
+
+model ScoreComment {
+  id        String      @id @default(uuid()) @db.Uuid
+  attemptId String      @db.Uuid
+  authorId  String?     @db.Uuid
+  text      String
+  private   Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  legacyId  Int?        @unique
+  attempt   QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  author    User?       @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+}
+
+model MediaAsset {
+  id          String     @id @default(uuid()) @db.Uuid
+  objectKey   String     @unique
+  publicUrl   String
+  mimeType    String     @db.VarChar(100)
+  sizeBytes   Int
+  checksum    String?    @db.VarChar(128)
+  createdAt   DateTime   @default(now())
+  questions   Question[]
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  action     String   @db.VarChar(120)
+  entityType String   @db.VarChar(80)
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?  @db.VarChar(64)
+  createdAt  DateTime @default(now())
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+}

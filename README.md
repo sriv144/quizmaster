@@ -1,95 +1,69 @@
-# 🧠 QuizMaster
+# QuizMaster
 
-<div align="center">
-  <p>
-    A dynamic quiz application built with Python Flask and Bootstrap. Users can test their knowledge on various topics and compete for the top spot on the leaderboard!
-  </p>
-</div>
+QuizMaster is a full-stack quiz and assessment platform for learners and administrators.
 
+## Stack
 
+- React 19 and React Router Framework Mode (`apps/web`)
+- NestJS with Fastify (`apps/api`)
+- PostgreSQL and Prisma ORM
+- pnpm workspaces
 
----
+## Architecture
 
-## ✨ Features
+- `apps/web` contains the responsive learner and administrator SPA. Vercel serves it and proxies `/api/*` to Render so secure session cookies remain first-party.
+- `apps/api` contains the versioned NestJS API, OpenAPI UI, session authentication, quiz authoring, attempt snapshots, grading, analytics, and presigned media uploads.
+- `packages/api-client` is the typed browser boundary for API requests and CSRF headers.
+- `migration` is the one-time, idempotent SQLite-to-PostgreSQL importer.
+- PostgreSQL owns transactional data. S3-compatible object storage such as Cloudflare R2 owns question media; uploaded files are never stored on the API filesystem.
 
-* **👤 User Authentication**: Secure login and registration system.
-* **📚 Topic Selection**: Choose from a variety of quiz categories.
-* **❓ Interactive Quizzes**: A clean and intuitive interface for answering questions.
-* **💯 Real-time Scoring**: Get instant feedback and see your score update live.
-* **🏆 Leaderboard**: Check the leaderboard to see how you rank against other players.
-* **📱 Responsive Design**: Built with Bootstrap for a seamless experience on both desktop and mobile devices.
+## Local development
 
----
+1. Install Node.js 24 LTS and pnpm 11.
+2. Copy `.env.example` to `.env` and `apps/web/.env.example` to `apps/web/.env`.
+3. Start PostgreSQL, MinIO, and Mailpit with `docker compose up -d`.
+4. Run `pnpm install`, `pnpm db:generate`, `pnpm db:migrate`, and `pnpm db:seed`.
+5. Start both applications with `pnpm dev`.
 
-## 🛠️ Technology Stack
+The web app runs at `http://localhost:5173`, the API at `http://localhost:3000`, and Mailpit at `http://localhost:8025`.
 
-This project was built using the following technologies:
+## Commands
 
-| Area      | Technology                                                                                                                                                                   |
-| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Backend** | ![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white) `Python` ![Flask](https://img.shields.io/badge/Flask-000000?style=flat&logo=flask&logoColor=white) `Flask` |
-| **Frontend** | ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white) `HTML5` ![Bootstrap](https://img.shields.io/badge/Bootstrap-7952B3?style=flat&logo=bootstrap&logoColor=white) `Bootstrap` |
-| **Database** | `SQLite`                                                                                                       |
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Run web and API development servers |
+| `pnpm build` | Build all workspaces |
+| `pnpm test` | Run unit and integration tests |
+| `pnpm typecheck` | Type-check all workspaces |
+| `pnpm lint` | Run ESLint |
+| `pnpm db:migrate` | Apply a development migration |
+| `pnpm db:seed` | Seed a local administrator and sample content |
+| `pnpm migrate:legacy` | Import a legacy SQLite database |
 
----
+API documentation is available at `http://localhost:3000/api/docs` outside production.
 
-## 🚀 Getting Started
+## Legacy migration
 
-To get a local copy up and running, follow these simple steps.
+1. Apply the PostgreSQL schema with `pnpm db:deploy`.
+2. Point `LEGACY_DATABASE_PATH` at a read-only copy of `quiz_master.db` and optionally set `MIGRATION_OUTPUT_DIR`.
+3. Run `pnpm migrate:legacy`. The command can be rerun safely: legacy IDs and attempt positions are upserted rather than duplicated.
+4. Review `legacy-import-report.json`. Ambiguous answer keys, empty quizzes, historical question-count mismatches, and media paths that still need an object-storage upload are called out explicitly.
+5. Keep flagged historical grades unchanged. Repair draft content separately, upload the listed media to object storage, and only then publish the affected quizzes.
 
-### Prerequisites
+Migrated accounts do not receive their old passwords. They are marked for a secure password-reset flow.
 
-Make sure you have **Python 3** and **pip** installed on your machine.
+## Deployment
 
-### Installation & Setup
+- For the selected temporary free demo with no domain, follow [the step-by-step hosting guide](docs/HOSTING.md).
+- The current Blueprint provisions free Render API and database instances; the database expires after 30 days. Use sample data for this demo.
+- Create the Render API and PostgreSQL database from `render.yaml`.
+- Configure optional R2/S3 and Resend values in the Render API Environment page when enabling images or email. The text-only demo starts without them.
+- Confirm the API service hostname in the `/api` rewrite in `vercel.json`, then import the repository into Vercel.
+- Set `APP_ORIGIN` to the final Vercel origin and deploy. The container startup applies checked-in Prisma migrations; optional `SEED_DEMO_DATA=true` bootstraps a sample quiz and administrator.
+- Run the legacy import from a trusted machine or one-off private job; do not upload the SQLite source to Git or a public build service.
 
-1.  **Clone the Repository**
-    ```sh
-    git clone [https://github.com/sriv144/quizmaster.git](https://github.com/sriv144/quizmaster.git)
-    cd quizmaster
-    ```
+The CI workflow runs schema generation, migrations, linting, typechecking, tests, and production builds on Node 24.
 
-2.  **Create and Activate a Virtual Environment**
-    * It's highly recommended to use a virtual environment to manage project dependencies.
+## Security note
 
-    * **On macOS/Linux:**
-        ```sh
-        python3 -m venv venv
-        source venv/bin/activate
-        ```
-    * **On Windows:**
-        ```sh
-        python -m venv venv
-        .\venv\Scripts\activate
-        ```
-
-3.  **Install Dependencies**
-    * Install all the required Python packages from the `requirements.txt` file.
-    ```sh
-    pip install -r requirements.txt
-    ```
-
-4.  **Set Up Environment Variables** (Optional)
-    * If your app uses a `.env` file for configuration (like a secret key), create it now.
-    ```env
-    FLASK_APP=app.py
-    FLASK_ENV=development
-    SECRET_KEY='your_super_secret_key'
-    ```
-
-5.  **Run the Application**
-    * Start the Flask development server.
-    ```sh
-    flask run
-    ```
-    Your application should now be running at `http://127.0.0.1:5000/`!
-
----
-
-
-
----
-
-## 📜 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+The original Flask repository committed a SQLite database containing plaintext passwords and personal information. The new importer never carries those passwords forward: migrated users must claim their account through a password-reset link. The historical database and generated migration reports must not be recommitted. Removing them from this branch does not remove them from existing Git history; rotate exposed credentials and perform a coordinated history rewrite before making the repository public.
