@@ -1,0 +1,31 @@
+{
+  "name": "quizmaster",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.19.0",
+  "engines": { "node": ">=24 <25" },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @quizmaster/api --filter @quizmaster/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "test:e2e": "playwright test",
+    "db:generate": "pnpm --filter @quizmaster/api db:generate",
+    "db:migrate": "pnpm --filter @quizmaster/api db:migrate",
+    "db:deploy": "pnpm --filter @quizmaster/api db:deploy",
+    "db:seed": "pnpm --filter @quizmaster/api db:seed",
+    "migrate:legacy": "pnpm --filter @quizmaster/migration start"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "@playwright/test": "^1.55.0",
+    "eslint": "^9.35.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.3.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.42.0"
+  }
+}
